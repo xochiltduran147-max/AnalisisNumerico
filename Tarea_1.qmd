@@ -20,31 +20,6 @@ Para las funciones de los ejercicios 1-6 realiza lo siguiente:
 
 a)  Gráfica de la función en el intervalo en caso que se indique.
 
-```{python}
-#| code-fold: true
-
-x = np.linspace(-100, 100, 1000)
-y1 = x * np.cos(x)
-y2 = x * np.sin(x)
-
-# Crear gráfica
-plt.figure(figsize=(8,6)) # Tamaño en pulgadas
-plt.plot(x,y1, color ="#ABC111", label = "f(x)")
-plt.plot(x, y2, color = "red", label = "g(x)")
-plt.axhline(0, color = "black", linewidth = 0.8, linestyle = "--") #Eje x
-plt.axvline(0, color = "black", linewidth = 0.8, linestyle = "--") #Eje x
-plt.legend(fontsize= 14)
-
-# Personalizar gráfica
-plt.title(r"Gráfica de las funciones $f(x)=x \, cos(x)$ y $g(x)=x \, sen(x)$", fontsize= 12)
-plt.xlabel("x")
-plt.ylabel("y")
-plt.grid()
-
-plt.show()
-```
-
-
 b)  Aproximación de la raíz o raíces por medio de los métodos de bisección, Newton-Raphson y la secante.
 
 c)  Compara los resultados.
