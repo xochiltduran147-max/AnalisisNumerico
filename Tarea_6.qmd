@@ -1,0 +1,3997 @@
+---
+title: "Tarea 6. Ecuaciones diferenciales ordinarias."
+author: "Xochilt MArcelina Duran Calderas"
+lang: es
+format: 
+  html:
+    grid:
+      body-width: 1200px
+---
+
+Packages requeridos:
+
+```{python}
+#| code-fold: true
+
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+from scipy import integrate
+```
+
+# Ejercicio 1
+
+La Ley de Enfriamiento de Newton establece que la tasa de enfriamiento de un objeto es proporcional a la diferencia de temperatura entre el objeto y su entorno. Supongamos que $t$ es el tiempo, $T$ es la temperatura del objeto, y $T_s$ es la temperatura del entorno. La siguiente ecuación diferencial describe la Ley de Newton:
+\begin{equation}
+\frac{dT}{dt} = k(T - T_s),
+\end{equation}
+
+donde $k$ es una constante.
+
+Consideramos una taza de café a 95 °C en una habitación de 18 °C. Se sabe que el café se enfría a una razón de 2 °C/min cuando su temperatura es de 70 °C. Calcula el valor de la constante $k$ y brinda una gráfica de la solución de la ecuación diferencial.
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import odeint
+
+# Datos del problema
+T0 = 95          # Temperatura inicial del café (°C)
+T_s = 18         # Temperatura del entorno (°C)
+t = 0           # Tiempo inicial (min)
+dTdt_conocida = -2   # Tasa de enfriamiento cuando T = 70 °C (°C/min)
+T_conocida = 70      # Temperatura en ese momento
+
+# Cálculo de la constante k usando la ecuación: dT/dt = k*(T - T_s)
+# Despejamos k = (dT/dt) / (T - T_s)
+k = dTdt_conocida / (T_conocida - T_s)
+
+print(f"Constante de enfriamiento k = {k:.6f} min^-1")
+
+# Definimos la ecuación diferencial
+def newton_cooling(T, t, k, T_s):
+    return k * (T - T_s)
+
+# Intervalo de tiempo (minutos)
+t_max = 60   # Simular por 60 minutos
+t = np.linspace(0, t_max, 1000)
+
+# Resolver la ecuación diferencial
+T_solution = odeint(newton_cooling, T0, t, args=(k, T_s))
+
+# Crear la gráfica
+plt.figure(figsize=(10, 6))
+plt.plot(t, T_solution, 'b-', linewidth=2, label=f'T(t) con k = {k:.4f}')
+plt.axhline(y=T_s, color='r', linestyle='--', label=f'Temperatura ambiente = {T_s}°C')
+plt.grid(True, alpha=0.3)
+plt.xlabel('Tiempo (minutos)', fontsize=12)
+plt.ylabel('Temperatura (°C)', fontsize=12)
+plt.title('Enfriamiento del café - Ley de Newton', fontsize=14)
+plt.legend(fontsize=10)
+plt.xlim(0, t_max)
+plt.ylim(15, 100)
+
+# Marcar el punto conocido (dT/dt = -2 cuando T=70)
+t_70 = np.log((T0 - T_s)/(70 - T_s))/abs(k)  # Tiempo cuando T=70
+plt.plot(t_70, 70, 'ro', markersize=8, label=f'Punto conocido: T=70°C en t={t_70:.1f} min')
+
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Mostrar algunos valores
+print(f"\nTiempo para alcanzar 70°C: {t_70:.2f} minutos")
+print(f"Temperatura después de 10 minutos: {T_solution[np.where(t >= 10)[0][0]][0]:.2f}°C")
+print(f"Temperatura después de 30 minutos: {T_solution[np.where(t >= 30)[0][0]][0]:.2f}°C")
+```
+
+# Ejercicio 2
+
+Brinda una aproximación de la solución del siguiente problema con valor inicial.
+\begin{equation}
+y' = t -ty, \qquad y(1)=0.
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+# Definimos la ecuación diferencial: y' = t - t*y = t(1 - y)
+def dy_dt(y, t):
+    return t - t*y  # equivalente a t*(1 - y)
+
+# Condición inicial
+y0 = 0
+t0 = 1
+
+# Intervalo de integración
+t_max = 5
+t = np.linspace(t0, t_max, 100)
+
+# Solución numérica con scipy (método de alta precisión)
+y_numerical = odeint(dy_dt, y0, t)
+y_numerical = y_numerical.flatten()
+
+# Solución analítica
+# La ecuación y' = t(1 - y) es separable
+# dy/(1-y) = t dt
+# -ln|1-y| = t²/2 + C
+# ln|1-y| = -t²/2 - C
+# 1-y = C₂ * e^{-t²/2}
+# y = 1 - C₂ * e^{-t²/2}
+# Usando y(1)=0: 0 = 1 - C₂ * e^{-1/2} → C₂ = e^{1/2}
+# Por lo tanto: y(t) = 1 - e^{(1 - t²)/2}
+
+def y_analytical(t):
+    return 1 - np.exp((1 - t**2)/2)
+
+y_exact = y_analytical(t)
+
+# Método de Euler (implementación manual)
+def euler_method(f, y0, t0, t_end, n_steps):
+    h = (t_end - t0) / n_steps
+    t_values = [t0]
+    y_values = [y0]
+    
+    for _ in range(n_steps):
+        t_curr = t_values[-1]
+        y_curr = y_values[-1]
+        y_next = y_curr + h * f(y_curr, t_curr)
+        t_values.append(t_curr + h)
+        y_values.append(y_next)
+    
+    return np.array(t_values), np.array(y_values)
+
+# Método de Runge-Kutta 4 (implementación manual)
+def rk4_method(f, y0, t0, t_end, n_steps):
+    h = (t_end - t0) / n_steps
+    t_values = [t0]
+    y_values = [y0]
+    
+    for _ in range(n_steps):
+        t_curr = t_values[-1]
+        y_curr = y_values[-1]
+        
+        k1 = f(y_curr, t_curr)
+        k2 = f(y_curr + h/2 * k1, t_curr + h/2)
+        k3 = f(y_curr + h/2 * k2, t_curr + h/2)
+        k4 = f(y_curr + h * k3, t_curr + h)
+        
+        y_next = y_curr + h/6 * (k1 + 2*k2 + 2*k3 + k4)
+        t_values.append(t_curr + h)
+        y_values.append(y_next)
+    
+    return np.array(t_values), np.array(y_values)
+
+# Aplicamos los métodos
+n_points = 100
+t_euler, y_euler = euler_method(dy_dt, y0, t0, t_max, n_points)
+t_rk4, y_rk4 = rk4_method(dy_dt, y0, t0, t_max, n_points)
+
+# Calculamos errores
+error_euler = np.abs(y_euler - y_analytical(t_euler))
+error_rk4 = np.abs(y_rk4 - y_analytical(t_rk4))
+error_odeint = np.abs(y_numerical - y_exact)
+
+# Graficamos los resultados
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+
+# Gráfica 1: Comparación de métodos
+ax1 = axes[0, 0]
+ax1.plot(t, y_exact, 'k-', linewidth=2.5, label='Solución analítica', alpha=0.8)
+ax1.plot(t_euler, y_euler, 'r--', linewidth=1.5, label='Método de Euler (h=0.04)', alpha=0.7)
+ax1.plot(t_rk4, y_rk4, 'g-.', linewidth=1.5, label='Runge-Kutta 4 (h=0.04)', alpha=0.7)
+ax1.plot(t, y_numerical, 'b:', linewidth=2, label='odeint (SciPy)', alpha=0.7)
+ax1.set_xlabel('t', fontsize=12)
+ax1.set_ylabel('y(t)', fontsize=12)
+ax1.set_title('Comparación de métodos numéricos', fontsize=14)
+ax1.legend(fontsize=10)
+ax1.grid(True, alpha=0.3)
+
+# Gráfica 2: Solución analítica
+ax2 = axes[0, 1]
+ax2.plot(t, y_exact, 'b-', linewidth=2.5)
+ax2.fill_between(t, y_exact, alpha=0.3)
+ax2.set_xlabel('t', fontsize=12)
+ax2.set_ylabel('y(t)', fontsize=12)
+ax2.set_title('Solución analítica: y(t) = 1 - e^{(1-t²)/2}', fontsize=12)
+ax2.grid(True, alpha=0.3)
+ax2.set_xlim(t0, t_max)
+
+# Gráfica 3: Errores (escala logarítmica)
+ax3 = axes[1, 0]
+ax3.semilogy(t_euler, error_euler, 'r-', label='Error Euler', linewidth=1.5)
+ax3.semilogy(t_rk4, error_rk4, 'g-', label='Error RK4', linewidth=1.5)
+ax3.semilogy(t, error_odeint, 'b-', label='Error odeint', linewidth=1.5)
+ax3.set_xlabel('t', fontsize=12)
+ax3.set_ylabel('Error absoluto', fontsize=12)
+ax3.set_title('Errores de los métodos numéricos', fontsize=14)
+ax3.legend(fontsize=10)
+ax3.grid(True, alpha=0.3)
+
+# Gráfica 4: Campo de direcciones
+ax4 = axes[1, 1]
+t_grid = np.linspace(t0, t_max, 15)
+y_grid = np.linspace(-0.5, 1.5, 12)
+T, Y = np.meshgrid(t_grid, y_grid)
+dY = dy_dt(Y, T)
+dT = np.ones_like(T)
+# Normalizar flechas
+N = np.sqrt(dT**2 + dY**2)
+dT_norm = dT / N
+dY_norm = dY / N
+ax4.quiver(T, Y, dT_norm, dY_norm, alpha=0.6)
+ax4.plot(t, y_exact, 'b-', linewidth=2.5, label='Solución analítica')
+ax4.plot(t0, y0, 'ro', markersize=8, label='Condición inicial (1,0)')
+ax4.set_xlabel('t', fontsize=12)
+ax4.set_ylabel('y', fontsize=12)
+ax4.set_title('Campo de direcciones y solución', fontsize=14)
+ax4.legend(fontsize=10)
+ax4.grid(True, alpha=0.3)
+ax4.set_xlim(t0, t_max)
+ax4.set_ylim(-0.5, 1.5)
+
+plt.tight_layout()
+plt.show()
+
+# Mostrar valores en puntos específicos
+print("Resultados numéricos:")
+print("-" * 50)
+print(f"{'t':<8} {'Analítica':<12} {'Euler':<12} {'RK4':<12} {'odeint':<12}")
+print("-" * 50)
+
+for t_val in [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0]:
+    idx = np.argmin(np.abs(t - t_val))
+    y_ana = y_exact[idx]
+    y_eul = y_euler[np.argmin(np.abs(t_euler - t_val))]
+    y_rk = y_rk4[np.argmin(np.abs(t_rk4 - t_val))]
+    y_ode = y_numerical[idx]
+    print(f"{t_val:<8.1f} {y_ana:<12.6f} {y_eul:<12.6f} {y_rk:<12.6f} {y_ode:<12.6f}")
+
+print("\nComportamiento asintótico:")
+print(f"Límite cuando t → ∞: y(t) → 1")
+print(f"y(5) ≈ {y_analytical(5):.6f} (prácticamente 1)")
+```
+
+
+# Ejercicio 3
+
+Para la siguiente ecuación diferencial ordinaria de segundo orden con valores iniciales
+\begin{equation}
+u''-3u'-1.5 u= 8\,sen(3t), \qquad u(1)=-0.5, u'(1)=1
+\end{equation}
+
+Escribe el respectivo sistema de ecuaciones diferenciales de primer orden considerando que $v=u'(t)$ (velocidad) y posteriormente brinda la solución del sistema por medio de las funciones $u(t)$ y $v(t)$
+
+
+Esta ecuación diferencial ordinaria de segundo orden se puede reescribir como el siguiente sistema de primer orden:
+\begin{eqnarray}
+u' & = & v \\
+v' &=& 3v + 1.5u + 8\sin(3t)
+\end{eqnarray}
+
+con los valores iniciales $u(1)=-0.5$ y $v(1)=1$.
+
+A continuación se muestra la aproximación de la solución del sistema de ecuaciones diferenciales ordinarias de primer orden y las gráficas de las funciones $u(t)$ y $v(t)$. Notar que $v(t)$ es la derivada de $u(t)$ y esta última es la función que resuelve la ecuación diferencial ordinaria de segundo orden dada en el enunciado.
+
+```{python}
+#| code-fold: true
+#| fig-align: "center"
+
+# Función que define el sistema de ecuaciones diferenciales ordinarias de primer orden
+def f(t, U):
+  u, v = U
+  return[v, 8*np.sin(3*t)+3*v+1.5*u]
+
+# Intervalo de tiempo y condiciones iniciales
+t0 = 1
+tf = 3
+s0 = [-0.5, 1]
+t_values = np.linspace(t0, tf, 200)
+
+# Aproximación de la solución del sistema de ecuaciones diferenciales ordinarias de primer orden
+edo_sol = integrate.solve_ivp(f, [t0, tf], s0, t_eval = t_values)
+
+# Gráfica de las funciones u(t) y v(t), notar que v(t) es la derivada de u(t) y esta última es la función que resuelve la ecuación diferencial ordinaria de segundo orden dada en el enunciado
+plt.figure(figsize=(8, 5))
+plt.plot(edo_sol.t, edo_sol.y[0], label = 'u(t)')
+plt.plot(edo_sol.t, edo_sol.y[1], label = 'v(t)')
+plt.xlabel('t')
+plt.ylabel('u/v')
+#plt.axhline(0, color='black', lw=1, ls='--')
+#plt.axvline(0, color='black', lw=1, ls='--')
+plt.legend()
+plt.grid()
+plt.show()
+```
+
+---
+
+<br>
+
+Para cada una de las ecuaciones diferenciales ordinarias de segundo y tercer orden con valores iniciales de los ejercicios 4 al 18, encuentra el respectivo sistema de primer orden y aproxima la solución, brinda gráficas de cada una de las funciones que resulten del sistema.
+
+# Ejercicio 4
+
+**Oscilador armónico simple**
+
+\begin{equation}
+y'' + 4y = 0,\quad y(0) = 1,\ y'(0) = 0
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden
+def sistema_ej4(t, y):
+    """y[0] = y, y[1] = y'"""
+    return [y[1], -4 * y[0]]
+
+# Condiciones iniciales
+y0 = [1, 0]  # y(0)=1, y'(0)=0
+t_span = (0, 10)
+t_eval = np.linspace(0, 10, 1000)
+
+# Resolver la EDO
+sol = solve_ivp(sistema_ej4, t_span, y0, t_eval=t_eval, method='RK45')
+
+# Solución analítica: y(t) = cos(2t)
+y_analitica = np.cos(2 * sol.t)
+
+# Gráficas
+fig, axes = plt.subplots(2, 1, figsize=(10, 8))
+fig.suptitle('Ejercicio 4: Oscilador Armónico Simple $y\'\' + 4y = 0$', fontsize=14, fontweight='bold')
+
+# Gráfica de posición
+axes[0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='Solución numérica')
+axes[0].plot(sol.t, y_analitica, 'r--', linewidth=1.5, alpha=0.7, label='Solución analítica $\\cos(2t)$')
+axes[0].set_ylabel('$y(t)$ [posición]', fontsize=12)
+axes[0].set_title('Posición', fontsize=12)
+axes[0].legend(fontsize=10)
+axes[0].grid(True, alpha=0.3)
+
+# Gráfica de velocidad
+axes[1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label="$y'(t)$ [velocidad]")
+axes[1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1].set_ylabel("$y'(t)$", fontsize=12)
+axes[1].set_title('Velocidad', fontsize=12)
+axes[1].legend(fontsize=10)
+axes[1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Mostrar información
+print("Ejercicio 4 - Oscilador armónico simple")
+print(f"Período teórico: T = π ≈ {np.pi:.4f} segundos")
+print(f"Frecuencia angular: ω = 2 rad/s")
+print(f"Amplitud: 1 unidad")
+```
+
+# Ejercicio 5
+
+**Oscilador amortiguado**
+
+\begin{equation}
+y'' + 0.5y' + 4y = 0,\quad y(0) = 2,\ y'(0) = 0
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden
+def sistema_ej5(t, y):
+    """y[0] = y, y[1] = y'"""
+    return [y[1], -4 * y[0] - 0.5 * y[1]]
+
+# Condiciones iniciales
+y0 = [2, 0]  # y(0)=2, y'(0)=0
+t_span = (0, 15)
+t_eval = np.linspace(0, 15, 1000)
+
+# Resolver la EDO
+sol = solve_ivp(sistema_ej5, t_span, y0, t_eval=t_eval, method='RK45')
+
+# Calcular envolvente exponencial: amortiguamiento ζ = 0.5/(2*2) = 0.125
+# Factor de amortiguamiento: e^(-ζω₀ t) con ω₀ = 2
+# La envolvente es ±2 * e^(-0.125*2*t) = ±2 * e^(-0.25t)
+envelope = 2 * np.exp(-0.25 * sol.t)
+
+# Gráficas
+fig, axes = plt.subplots(2, 1, figsize=(10, 8))
+fig.suptitle('Ejercicio 5: Oscilador Amortiguado $y\'\' + 0.5y\' + 4y = 0$', fontsize=14, fontweight='bold')
+
+# Gráfica de posición
+axes[0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$y(t)$')
+axes[0].plot(sol.t, envelope, 'r--', linewidth=1.5, alpha=0.6, label='Envolvente $+2e^{-t/4}$')
+axes[0].plot(sol.t, -envelope, 'r--', linewidth=1.5, alpha=0.6, label='Envolvente $-2e^{-t/4}$')
+axes[0].set_ylabel('$y(t)$ [posición]', fontsize=12)
+axes[0].set_title('Posición (oscilaciones amortiguadas)', fontsize=12)
+axes[0].legend(fontsize=10)
+axes[0].grid(True, alpha=0.3)
+
+# Gráfica de velocidad
+axes[1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label="$y'(t)$ [velocidad]")
+axes[1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1].set_ylabel("$y'(t)$", fontsize=12)
+axes[1].set_title('Velocidad', fontsize=12)
+axes[1].legend(fontsize=10)
+axes[1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Mostrar información
+print("Ejercicio 5 - Oscilador amortiguado")
+print(f"Frecuencia natural: ω₀ = 2 rad/s")
+print(f"Coeficiente de amortiguamiento: ζ = 0.125 (subamortiguado)")
+print(f"La envolvente decae como e^(-t/4)")
+```
+
+# Ejercicio 6
+
+**Oscilador forzado**
+
+\begin{equation}
+y'' + 2y' + y = \cos(t),\quad y(0) = 0,\ y'(0) = 1
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden
+def sistema_ej6(t, y):
+    """y[0] = y, y[1] = y'"""
+    return [y[1], np.cos(t) - y[0] - 2 * y[1]]
+
+# Condiciones iniciales
+y0 = [0, 1]  # y(0)=0, y'(0)=1
+t_span = (0, 20)
+t_eval = np.linspace(0, 20, 1000)
+
+# Resolver la EDO
+sol = solve_ivp(sistema_ej6, t_span, y0, t_eval=t_eval, method='RK45')
+
+# Gráficas
+fig, axes = plt.subplots(3, 1, figsize=(10, 10))
+fig.suptitle('Ejercicio 6: Oscilador Forzado $y\'\' + 2y\' + y = \\cos(t)$', fontsize=14, fontweight='bold')
+
+# Gráfica de posición
+axes[0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5, label='$y(t)$')
+axes[0].set_ylabel('$y(t)$ [posición]', fontsize=12)
+axes[0].set_title('Posición (régimen transitorio + estado estacionario)', fontsize=12)
+axes[0].legend(fontsize=10)
+axes[0].grid(True, alpha=0.3)
+
+# Gráfica de velocidad
+axes[1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5, label="$y'(t)$")
+axes[1].set_ylabel("$y'(t)$ [velocidad]", fontsize=12)
+axes[1].set_title('Velocidad', fontsize=12)
+axes[1].legend(fontsize=10)
+axes[1].grid(True, alpha=0.3)
+
+# Gráfica de la fuerza externa
+axes[2].plot(sol.t, np.cos(sol.t), 'r-', linewidth=1.5, label='$F(t) = \\cos(t)$')
+axes[2].set_xlabel('Tiempo $t$', fontsize=12)
+axes[2].set_ylabel('Fuerza externa', fontsize=12)
+axes[2].set_title('Forzamiento externo', fontsize=12)
+axes[2].legend(fontsize=10)
+axes[2].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Mostrar información
+print("Ejercicio 6 - Oscilador forzado")
+print(f"Sistema masa-resorte-amortiguador con forzamiento cos(t)")
+print(f"Estado estacionario: oscilación con frecuencia ω = 1 rad/s")
+```
+
+# Ejercicio 7
+
+**Ecuación no lineal de segundo orden**
+
+\begin{equation}
+y'' = -y^3 + \cos(t),\quad y(0) = 0,\ y'(0) = 0
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden (no lineal)
+def sistema_ej7(t, y):
+    """y[0] = y, y[1] = y'"""
+    return [y[1], -y[0]**3 + np.cos(t)]
+
+# Condiciones iniciales
+y0 = [0, 0]  # y(0)=0, y'(0)=0
+t_span = (0, 20)
+t_eval = np.linspace(0, 20, 2000)
+
+# Resolver la EDO (con mayor precisión por ser no lineal)
+sol = solve_ivp(sistema_ej7, t_span, y0, t_eval=t_eval, method='RK45', rtol=1e-8, atol=1e-8)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 7: Ecuación No Lineal $y\'\' = -y^3 + \\cos(t)$', fontsize=14, fontweight='bold')
+
+# Gráfica de posición
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5)
+axes[0, 0].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 0].set_title('Posición', fontsize=12)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Gráfica de velocidad
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5)
+axes[0, 1].set_ylabel("$y'(t)$", fontsize=12)
+axes[0, 1].set_title('Velocidad', fontsize=12)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Retrato de fase (y vs y')
+axes[1, 0].plot(sol.y[0], sol.y[1], 'r-', linewidth=1, alpha=0.7)
+axes[1, 0].set_xlabel('$y$ [posición]', fontsize=12)
+axes[1, 0].set_ylabel("$y'$ [velocidad]", fontsize=12)
+axes[1, 0].set_title('Retrato de fase', fontsize=12)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Comparación con solución lineal aproximada (pequeña amplitud)
+# Para y pequeño, -y^3 ≈ 0, entonces sería y'' ≈ cos(t)
+t_small = sol.t[sol.t < 5]
+y_lineal_aprox = 1 - np.cos(t_small)  # solución de y'' = cos(t) con CI cero
+axes[1, 1].plot(sol.t, sol.y[0], 'b-', linewidth=1.5, label='No lineal')
+axes[1, 1].plot(t_small, y_lineal_aprox, 'r--', linewidth=1.5, alpha=0.7, label='Aprox. lineal $y\'\' \\approx \\cos(t)$')
+axes[1, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 1].set_ylabel('$y(t)$', fontsize=12)
+axes[1, 1].set_title('Comparación con aproximación lineal', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Mostrar información
+print("Ejercicio 7 - Ecuación no lineal")
+print("Término no lineal: -y³ (restauración no lineal tipo Duffing)")
+print("Forzamiento externo: cos(t)")
+print("Comportamiento: oscilaciones no sinusoidales debido a la no linealidad")
+```
+
+# Ejercicio 8
+
+**Amortiguamiento cuadrático**
+
+\begin{equation}
+y'' + y'^2 + y = 0,\quad y(0) = 1,\ y'(0) = -1
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden (amortiguamiento cuadrático)
+def sistema_ej8(t, y):
+    """
+    y[0] = y (posición)
+    y[1] = y' (velocidad)
+    Ecuación: y'' + (y')² + y = 0  →  y'' = - (y')² - y
+    """
+    return [y[1], -y[1]**2 - y[0]]
+
+# Condiciones iniciales
+y0 = [1, -1]  # y(0)=1, y'(0)=-1
+t_span = (0, 20)
+t_eval = np.linspace(0, 20, 2000)
+
+# Resolver la EDO (no lineal, usar tolerancias más estrictas)
+sol = solve_ivp(sistema_ej8, t_span, y0, t_eval=t_eval, method='RK45', 
+                rtol=1e-8, atol=1e-8)
+
+# Calcular energía mecánica (aproximada)
+# Energía potencial: Ep = (1/2)*y² (como resorte lineal)
+# Energía cinética: Ec = (1/2)*(y')²
+# Energía total: E = Ep + Ec
+energia_potencial = 0.5 * sol.y[0]**2
+energia_cinetica = 0.5 * sol.y[1]**2
+energia_total = energia_potencial + energia_cinetica
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 8: Amortiguamiento Cuadrático $y\'\' + (y\')^2 + y = 0$', 
+             fontsize=14, fontweight='bold')
+
+# Gráfica de posición
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5)
+axes[0, 0].set_ylabel('$y(t)$ [posición]', fontsize=12)
+axes[0, 0].set_title('Posición', fontsize=12)
+axes[0, 0].grid(True, alpha=0.3)
+axes[0, 0].axhline(y=0, color='k', linestyle='-', alpha=0.2)
+
+# Gráfica de velocidad
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5)
+axes[0, 1].set_ylabel("$y'(t)$ [velocidad]", fontsize=12)
+axes[0, 1].set_title('Velocidad', fontsize=12)
+axes[0, 1].grid(True, alpha=0.3)
+axes[0, 1].axhline(y=0, color='k', linestyle='-', alpha=0.2)
+
+# Retrato de fase (y vs y')
+axes[1, 0].plot(sol.y[0], sol.y[1], 'r-', linewidth=1, alpha=0.8)
+axes[1, 0].plot(sol.y[0][0], sol.y[1][0], 'ro', markersize=8, label='Condición inicial (1, -1)')
+axes[1, 0].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=8, label='Punto final')
+axes[1, 0].set_xlabel('$y$ [posición]', fontsize=12)
+axes[1, 0].set_ylabel("$y'$ [velocidad]", fontsize=12)
+axes[1, 0].set_title('Retrato de fase (espacio de estados)', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Energía vs tiempo (muestra disipación)
+axes[1, 1].plot(sol.t, energia_total, 'm-', linewidth=1.5, label='Energía total')
+axes[1, 1].plot(sol.t, energia_potencial, 'b--', linewidth=1, alpha=0.6, label='Energía potencial')
+axes[1, 1].plot(sol.t, energia_cinetica, 'g--', linewidth=1, alpha=0.6, label='Energía cinética')
+axes[1, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 1].set_ylabel('Energía', fontsize=12)
+axes[1, 1].set_title('Disipación de energía (amortiguamiento cuadrático)', fontsize=12)
+axes[1, 1].legend(fontsize=9)
+axes[1, 1].grid(True, alpha=0.3)
+axes[1, 1].set_yscale('log')
+
+plt.tight_layout()
+plt.show()
+
+# Mostrar información
+print("=" * 60)
+print("Ejercicio 8 - Amortiguamiento cuadrático")
+print("=" * 60)
+print(f"Ecuación: y'' + (y')² + y = 0")
+print(f"Condiciones: y(0)=1, y'(0)=-1")
+print(f"\nCaracterísticas:")
+print(f"  • El amortiguamiento es proporcional al cuadrado de la velocidad")
+print(f"  • Para velocidades grandes, la disipación es muy fuerte")
+print(f"  • Para velocidades pequeñas, el amortiguamiento es débil")
+print(f"\nResultados numéricos:")
+print(f"  • Tiempo final de simulación: {sol.t[-1]:.1f} s")
+print(f"  • Posición final: y ≈ {sol.y[0][-1]:.6f}")
+print(f"  • Velocidad final: y' ≈ {sol.y[1][-1]:.6f}")
+print(f"  • Energía inicial: {energia_total[0]:.6f}")
+print(f"  • Energía final: {energia_total[-1]:.6f}")
+print(f"  • Energía disipada: {energia_total[0] - energia_total[-1]:.6f} ({100*(1-energia_total[-1]/energia_total[0]):.1f}%)")
+```
+
+# Ejercicio 9
+
+**Péndulo simple (no lineal)**
+
+\begin{equation}
+\theta'' + \sin(\theta) = 0,\quad \theta(0) = \frac{\pi}{4},\ \theta'(0) = 0
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden (péndulo no lineal)
+def sistema_ej9(t, theta):
+    """
+    theta[0] = θ (ángulo)
+    theta[1] = θ' (velocidad angular)
+    Ecuación: θ'' + sin(θ) = 0  →  θ'' = -sin(θ)
+    """
+    return [theta[1], -np.sin(theta[0])]
+
+# Condiciones iniciales
+theta0 = [np.pi/4, 0]  # θ(0)=45°, θ'(0)=0 rad/s
+t_span = (0, 20)
+t_eval = np.linspace(0, 20, 2000)
+
+# Resolver la EDO (no lineal)
+sol = solve_ivp(sistema_ej9, t_span, theta0, t_eval=t_eval, method='RK45', 
+                rtol=1e-8, atol=1e-8)
+
+# Solución linealizada (para pequeñas oscilaciones: sin(θ) ≈ θ)
+# θ'' + θ = 0 → θ(t) = θ₀·cos(t) con θ₀ = π/4
+theta_lineal = (np.pi/4) * np.cos(sol.t)
+
+# Energía del péndulo (por unidad de masa, con L=g=1)
+# Energía cinética: Ec = (1/2)*(θ')²
+# Energía potencial: Ep = 1 - cos(θ)  (referencia en punto más bajo)
+energia_cinetica = 0.5 * sol.y[1]**2
+energia_potencial = 1 - np.cos(sol.y[0])
+energia_total = energia_cinetica + energia_potencial
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 9: Péndulo Simple No Lineal $\\theta\'\' + \\sin(\\theta) = 0$', 
+             fontsize=14, fontweight='bold')
+
+# Gráfica de posición angular
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5, label='No lineal')
+axes[0, 0].plot(sol.t, theta_lineal, 'r--', linewidth=1, alpha=0.6, 
+                label='Linealizada $\\theta_0\\cos(t)$')
+axes[0, 0].set_ylabel('$\\theta(t)$ [rad]', fontsize=12)
+axes[0, 0].set_title('Ángulo del péndulo', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+axes[0, 0].axhline(y=0, color='k', linestyle='-', alpha=0.2)
+
+# Gráfica de velocidad angular
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5)
+axes[0, 1].set_ylabel("$\\theta'(t)$ [rad/s]", fontsize=12)
+axes[0, 1].set_title('Velocidad angular', fontsize=12)
+axes[0, 1].grid(True, alpha=0.3)
+axes[0, 1].axhline(y=0, color='k', linestyle='-', alpha=0.2)
+
+# Retrato de fase (θ vs θ')
+axes[1, 0].plot(sol.y[0], sol.y[1], 'r-', linewidth=1, alpha=0.8)
+axes[1, 0].plot(sol.y[0][0], sol.y[1][0], 'ro', markersize=8, 
+                label=f'Inicio ($\\pi$/4, 0)')
+axes[1, 0].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=8, label='Punto final')
+axes[1, 0].set_xlabel('$\\theta$ [rad]', fontsize=12)
+axes[1, 0].set_ylabel("$\\theta'$ [rad/s]", fontsize=12)
+axes[1, 0].set_title('Retrato de fase (espacio de estados)', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Energía total (conservada en péndulo ideal)
+axes[1, 1].plot(sol.t, energia_total, 'm-', linewidth=1.5, label='Energía total')
+axes[1, 1].plot(sol.t, energia_cinetica, 'g--', linewidth=1, alpha=0.6, 
+                label='Energía cinética')
+axes[1, 1].plot(sol.t, energia_potencial, 'b--', linewidth=1, alpha=0.6, 
+                label='Energía potencial')
+axes[1, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 1].set_ylabel('Energía (unidades $mL^2$)', fontsize=12)
+axes[1, 1].set_title('Conservación de la energía', fontsize=12)
+axes[1, 1].legend(fontsize=9)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Mostrar información
+print("=" * 60)
+print("Ejercicio 9 - Péndulo simple no lineal")
+print("=" * 60)
+print(f"Ecuación: θ'' + sin(θ) = 0")
+print(f"Condiciones: θ(0)=π/4 rad ({np.pi/4*180/np.pi:.1f}°), θ'(0)=0 rad/s")
+print(f"\nCaracterísticas:")
+print(f"  • Sistema conservativo (sin amortiguamiento)")
+print(f"  • Período depende de la amplitud (oscilaciones no isócronas)")
+print(f"  • Para ángulos pequeños: período T ≈ 2π ≈ {2*np.pi:.4f} s")
+print(f"\nResultados numéricos:")
+print(f"  • Período aproximado: ~{2*np.pi/0.95:.2f} s (ligeramente mayor que lineal)")
+print(f"  • Energía total (constante): {energia_total[0]:.6f}")
+print(f"  • Variación de energía (error numérico): {np.std(energia_total):.2e}")
+print(f"\nComparación con modelo linealizado:")
+print(f"  • La solución lineal tiene período fijo T=2π")
+print(f"  • El péndulo real tiene mayor período debido a la no linealidad")
+```
+
+# Ejercicio 10
+
+**Circuito RLC**
+
+\begin{equation}
+LQ'' + RQ' + \frac{1}{C}Q = V(t),\quad Q(0) = 0,\ Q'(0) = 0,\quad V(t) = \sin(t)
+\end{equation}
+
+Considera $L = 0.5$, $R = 2$ y $C = 5$ para este ejercicio.
+
+Considerando la derivada de la carga $Q$ como la corriente $I$, es decir, $I = Q'$, podemos reescribir la ecuación diferencial de segundo orden como el siguiente sistema de primer orden:
+\begin{eqnarray}
+Q' & = & I \\
+I' &=& \frac{1}{L}\left(\sin(t) - RI - \frac{1}{C}Q\right)
+\end{eqnarray}
+
+con las condiciones iniciales $Q(0) = 0$ y $I(0) = 0$. A continuación se muestra la aproximación de la solución del sistema de ecuaciones diferenciales ordinarias de primer orden y las gráficas de las funciones $Q(t)$ y $I(t)$. Notar que $I(t)$ es la derivada de $Q(t)$ y esta última es la función que resuelve la ecuación diferencial ordinaria de segundo orden dada en el enunciado.
+
+```{python}
+#| code-fold: true
+#| fig-align: "center"
+
+def f(t, Q, L, R, C):
+  q, i = Q
+  return[i, (1/L)*(np.sin(t)-R*i+q/C)]
+
+L =0.5
+R = 2
+C= 5
+
+t0 = 0
+tf = 20
+s0 = [0, 0]
+t_values = np.linspace(t0, tf, 1000)
+
+edo_sol = integrate.solve_ivp(f, [t0, tf], s0, t_eval = t_values, args = (L, R, C))
+
+plt.figure(figsize=(8, 5))
+plt.plot(edo_sol.t, edo_sol.y[0], label = 'Q(t)')
+plt.plot(edo_sol.t, edo_sol.y[1], label = 'I(t)')
+plt.xlabel('t')
+plt.ylabel('Q/I')
+#plt.axhline(0, color='black', lw=1, ls='--')
+#plt.axvline(0, color='black', lw=1, ls='--')
+plt.legend()
+plt.grid()
+plt.show()
+
+```
+
+
+# Ejercicio 11
+
+**Ecuación de Bessel aproximada**
+
+\begin{equation}
+x^2y'' + xy' + (x^2 - 1)y = 0,\quad y(1) = 0.5,\ y'(1) = -0.1
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+from scipy.special import jv, yv  # Funciones de Bessel para comparación
+
+# Definir el sistema de primer orden (ecuación de Bessel modificada)
+def sistema_ej11(x, y):
+    """
+    y[0] = y
+    y[1] = y'
+    Ecuación: x²y'' + xy' + (x² - 1)y = 0
+    Despejando: y'' = -(1/x)y' - (1 - 1/x²)y
+    """
+    if x < 1e-10:  # Evitar división por cero
+        return [y[1], 0]
+    return [y[1], -(1/x)*y[1] - (1 - 1/x**2)*y[0]]
+
+# Condiciones iniciales en x=1
+y0 = [0.5, -0.1]  # y(1)=0.5, y'(1)=-0.1
+x_span = (1, 15)
+x_eval = np.linspace(1, 15, 2000)
+
+# Resolver la EDO
+sol = solve_ivp(sistema_ej11, x_span, y0, t_eval=x_eval, method='RK45', 
+                rtol=1e-8, atol=1e-8)
+
+# Solución de Bessel: combinación lineal de J₁(x) y Y₁(x)
+# La ecuación es la ecuación de Bessel de orden 1
+# Encontrar coeficientes A y B tales que y = A·J₁(x) + B·Y₁(x)
+# Usando condiciones en x=1
+J1_1 = jv(1, 1)      # J₁(1) ≈ 0.44005
+Y1_1 = yv(1, 1)      # Y₁(1) ≈ -0.78121
+J1p_1 = (jv(0, 1) - jv(2, 1))/2  # J₁'(1)
+Y1p_1 = (yv(0, 1) - yv(2, 1))/2  # Y₁'(1)
+
+# Resolver sistema: A·J₁(1) + B·Y₁(1) = 0.5
+#                   A·J₁'(1) + B·Y₁'(1) = -0.1
+A = (0.5*Y1p_1 + 0.1*Y1_1) / (J1_1*Y1p_1 - J1p_1*Y1_1)
+B = (0.5*J1p_1 + 0.1*J1_1) / (J1p_1*Y1_1 - J1_1*Y1p_1)
+
+# Solución analítica aproximada
+y_bessel = A * jv(1, x_eval) + B * yv(1, x_eval)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 11: Ecuación de Bessel $x^2y\'\' + xy\' + (x^2 - 1)y = 0$', 
+             fontsize=14, fontweight='bold')
+
+# Solución numérica
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5, label='Solución numérica')
+axes[0, 0].plot(x_eval, y_bessel, 'r--', linewidth=1, alpha=0.7, 
+                label='Combinación $J_1, Y_1$')
+axes[0, 0].set_xlabel('$x$', fontsize=12)
+axes[0, 0].set_ylabel('$y(x)$', fontsize=12)
+axes[0, 0].set_title('Solución (función de Bessel de orden 1)', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Derivada
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5)
+axes[0, 1].set_xlabel('$x$', fontsize=12)
+axes[0, 1].set_ylabel("$y'(x)$", fontsize=12)
+axes[0, 1].set_title('Derivada', fontsize=12)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Retrato de fase (y vs y')
+axes[1, 0].plot(sol.y[0], sol.y[1], 'r-', linewidth=0.8, alpha=0.7)
+axes[1, 0].plot(y0[0], y0[1], 'ro', markersize=8, label='Condición inicial (0.5, -0.1)')
+axes[1, 0].set_xlabel('$y$', fontsize=12)
+axes[1, 0].set_ylabel("$y'$", fontsize=12)
+axes[1, 0].set_title('Retrato de fase', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Amplitud decaiente
+amplitud = np.abs(sol.y[0]) * np.sqrt(sol.t)
+axes[1, 1].plot(sol.t, sol.y[0], 'b-', linewidth=1, alpha=0.5, label='$y(x)$')
+axes[1, 1].plot(sol.t, 0.8/np.sqrt(sol.t), 'r--', linewidth=1.5, 
+                label='Envolvente $\\propto 1/\\sqrt{x}$')
+axes[1, 1].plot(sol.t, -0.8/np.sqrt(sol.t), 'r--', linewidth=1.5)
+axes[1, 1].set_xlabel('$x$', fontsize=12)
+axes[1, 1].set_ylabel('$y(x)$', fontsize=12)
+axes[1, 1].set_title('Comportamiento asintótico (decreciente)', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 11 - Ecuación de Bessel de orden 1")
+print("=" * 60)
+print(f"Coeficientes de la combinación lineal:")
+print(f"  y(x) = A·J₁(x) + B·Y₁(x)")
+print(f"  A = {A:.6f}")
+print(f"  B = {B:.6f}")
+print(f"\nComportamiento asintótico:")
+print(f"  Para x grande: J₁(x) ∝ cos(x - 3π/4)/√(πx/2)")
+print(f"  Amplitud decae como 1/√x")
+```
+
+# Ejercicio 12
+
+**No lineal con exponencial**
+
+\begin{equation}
+y'' + y e^y = \sin(t),\quad y(0) = 0,\ y'(0) = 1
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden
+def sistema_ej12(t, y):
+    """
+    y[0] = y
+    y[1] = y'
+    Ecuación: y'' + y·e^y = sin(t)  →  y'' = sin(t) - y·e^y
+    """
+    return [y[1], np.sin(t) - y[0] * np.exp(y[0])]
+
+# Condiciones iniciales
+y0 = [0, 1]  # y(0)=0, y'(0)=1
+t_span = (0, 15)
+t_eval = np.linspace(0, 15, 2000)
+
+# Resolver EDO no lineal
+sol = solve_ivp(sistema_ej12, t_span, y0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Solución linealizada: y'' + y = sin(t) (para y pequeño, e^y ≈ 1)
+# Solución particular: yp = -0.5·t·cos(t) (resonancia)
+# Con CI: y(0)=0, y'(0)=1 → y_lineal = sin(t) - 0.5·t·cos(t)
+t_lin = t_eval
+y_lineal = np.sin(t_lin) - 0.5 * t_lin * np.cos(t_lin)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 12: Ecuación No Lineal $y\'\' + ye^y = \\sin(t)$', 
+             fontsize=14, fontweight='bold')
+
+# Solución
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5, label='No lineal')
+axes[0, 0].plot(t_lin, y_lineal, 'r--', linewidth=1, alpha=0.6, 
+                label='Linealizada (resonancia)')
+axes[0, 0].set_xlabel('$t$', fontsize=12)
+axes[0, 0].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 0].set_title('Comparación con modelo linealizado', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Velocidad
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5)
+axes[0, 1].set_xlabel('$t$', fontsize=12)
+axes[0, 1].set_ylabel("$y'(t)$", fontsize=12)
+axes[0, 1].set_title('Velocidad', fontsize=12)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Retrato de fase
+axes[1, 0].plot(sol.y[0], sol.y[1], 'r-', linewidth=0.8, alpha=0.7)
+axes[1, 0].plot(y0[0], y0[1], 'ro', markersize=8, label='CI (0, 1)')
+axes[1, 0].set_xlabel('$y$', fontsize=12)
+axes[1, 0].set_ylabel("$y'$", fontsize=12)
+axes[1, 0].set_title('Retrato de fase', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Término no lineal
+term_no_lineal = sol.y[0] * np.exp(sol.y[0])
+axes[1, 1].plot(sol.t, term_no_lineal, 'm-', linewidth=1.5, label='$y e^y$')
+axes[1, 1].plot(sol.t, np.sin(sol.t), 'k--', linewidth=1, alpha=0.5, 
+                label='$\\sin(t)$ (forzamiento)')
+axes[1, 1].set_xlabel('$t$', fontsize=12)
+axes[1, 1].set_ylabel('Términos', fontsize=12)
+axes[1, 1].set_title('Término no lineal vs forzamiento', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 12 - Ecuación no lineal y'' + y·e^y = sin(t)")
+print("=" * 60)
+print(f"Condiciones iniciales: y(0)=0, y'(0)=1")
+print(f"\nObservaciones:")
+print(f"  • Término no lineal y·e^y crece rápidamente si y > 0")
+print(f"  • El forzamiento sin(t) induce oscilaciones")
+print(f"  • El sistema linealizado tiene resonancia (amplitud crece linealmente)")
+print(f"  • La no linealidad evita el crecimiento ilimitado")
+```
+
+# Ejercicio 13
+
+**Cuerda con fuerza externa**
+
+\begin{equation}
+y'' = -\pi^2 y + \cos(2\pi t),\quad y(0) = 1,\ y'(0) = 0
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden
+def sistema_ej13(t, y):
+    """
+    y[0] = y
+    y[1] = y'
+    Ecuación: y'' = -π²·y + cos(2πt)
+    """
+    return [y[1], -np.pi**2 * y[0] + np.cos(2 * np.pi * t)]
+
+# Condiciones iniciales
+y0 = [1, 0]  # y(0)=1, y'(0)=0
+t_span = (0, 5)
+t_eval = np.linspace(0, 5, 2000)
+
+# Resolver EDO
+sol = solve_ivp(sistema_ej13, t_span, y0, t_eval=t_eval, method='RK45')
+
+# Solución analítica
+# Homogénea: yh = A·cos(πt) + B·sin(πt)
+# Particular: yp = C·cos(2πt) (porque cos(2πt))
+# Sustituyendo: -4π²C·cos(2πt) = -π²·C·cos(2πt) + cos(2πt)
+# (-4π²C + π²C) = 1  →  -3π²C = 1  →  C = -1/(3π²)
+# Ajustar CI: y(0)=A + C = 1 → A = 1 - C
+# y'(0)= π·B = 0 → B = 0
+C = -1/(3 * np.pi**2)
+A = 1 - C
+y_analitica = A * np.cos(np.pi * sol.t) + C * np.cos(2 * np.pi * sol.t)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 13: Cuerda con fuerza externa $y\'\' + \\pi^2 y = \\cos(2\\pi t)$', 
+             fontsize=14, fontweight='bold')
+
+# Solución
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5, label='Solución numérica')
+axes[0, 0].plot(sol.t, y_analitica, 'r--', linewidth=1.5, alpha=0.7, 
+                label='Solución analítica')
+axes[0, 0].set_xlabel('$t$', fontsize=12)
+axes[0, 0].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 0].set_title('Posición de la cuerda', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Velocidad
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5)
+axes[0, 1].set_xlabel('$t$', fontsize=12)
+axes[0, 1].set_ylabel("$y'(t)$", fontsize=12)
+axes[0, 1].set_title('Velocidad', fontsize=12)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Retrato de fase
+axes[1, 0].plot(sol.y[0], sol.y[1], 'r-', linewidth=0.8, alpha=0.7)
+axes[1, 0].plot(y0[0], y0[1], 'ro', markersize=8, label='CI (1, 0)')
+axes[1, 0].set_xlabel('$y$', fontsize=12)
+axes[1, 0].set_ylabel("$y'$", fontsize=12)
+axes[1, 0].set_title('Retrato de fase', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Componentes de la solución
+yh = A * np.cos(np.pi * sol.t)
+yp = C * np.cos(2 * np.pi * sol.t)
+axes[1, 1].plot(sol.t, yh, 'b--', linewidth=1.5, alpha=0.6, label='Homogénea')
+axes[1, 1].plot(sol.t, yp, 'g--', linewidth=1.5, alpha=0.6, label='Particular')
+axes[1, 1].plot(sol.t, sol.y[0], 'k-', linewidth=1, alpha=0.5, label='Total')
+axes[1, 1].set_xlabel('$t$', fontsize=12)
+axes[1, 1].set_ylabel('$y(t)$', fontsize=12)
+axes[1, 1].set_title('Descomposición homogénea + particular', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 13 - Cuerda con fuerza externa")
+print("=" * 60)
+print(f"Frecuencia natural: ω₀ = π ≈ {np.pi:.4f} rad/s")
+print(f"Frecuencia del forzamiento: ω = 2π ≈ {2*np.pi:.4f} rad/s")
+print(f"\nSolución analítica:")
+print(f"  y(t) = {A:.4f}·cos(πt) + {C:.4f}·cos(2πt)")
+print(f"  Amplitud de la forzada: |C| = {abs(C):.4f}")
+```
+
+# Ejercicio 14
+
+**EDO homogénea de tercer orden**
+
+\begin{equation}
+y''' - 3y'' + 3y' - y = 0,\quad y(0) = 1,\ y'(0) = 0,\ y''(0) = 1
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden (3x3)
+def sistema_ej14(t, y):
+    """
+    y[0] = y
+    y[1] = y'
+    y[2] = y''
+    Ecuación: y''' - 3y'' + 3y' - y = 0
+    Despejando: y''' = 3y'' - 3y' + y
+    """
+    return [y[1], y[2], 3*y[2] - 3*y[1] + y[0]]
+
+# Condiciones iniciales (3 condiciones)
+y0 = [1, 0, 1]  # y(0)=1, y'(0)=0, y''(0)=1
+t_span = (0, 6)
+t_eval = np.linspace(0, 6, 2000)
+
+# Resolver EDO
+sol = solve_ivp(sistema_ej14, t_span, y0, t_eval=t_eval, method='RK45')
+
+# Solución analítica
+# Ecuación característica: r³ - 3r² + 3r - 1 = (r-1)³ = 0
+# Raíz triple r = 1
+# Solución: y(t) = (A + Bt + Ct²)·e^t
+# y(0) = A = 1
+# y'(t) = (B + 2Ct)·e^t + (A + Bt + Ct²)·e^t = (A+B + (B+2C)t + Ct²)·e^t
+# y'(0) = A + B = 0 → B = -A = -1
+# y''(t) = derivar: y''(0) = (A+2B+2C) = 1 → 1 - 2 + 2C = 1 → -1 + 2C = 1 → C = 1
+A, B, C = 1, -1, 1
+y_analitica = (A + B*sol.t + C*sol.t**2) * np.exp(sol.t)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 14: EDO Homogénea de Tercer Orden $y\'\'\' - 3y\'\' + 3y\' - y = 0$', 
+             fontsize=14, fontweight='bold')
+
+# Solución
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='Solución numérica')
+axes[0, 0].plot(sol.t, y_analitica, 'r--', linewidth=1.5, alpha=0.7, 
+                label='Analítica: $(1 - t + t^2)e^t$')
+axes[0, 0].set_xlabel('$t$', fontsize=12)
+axes[0, 0].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 0].set_title('Solución (crecimiento exponencial con polinomio)', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Primera derivada
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5, label="$y'(t)$")
+axes[0, 1].set_xlabel('$t$', fontsize=12)
+axes[0, 1].set_ylabel("$y'(t)$", fontsize=12)
+axes[0, 1].set_title('Primera derivada', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Segunda derivada
+axes[1, 0].plot(sol.t, sol.y[2], 'm-', linewidth=1.5, label="$y''(t)$")
+axes[1, 0].set_xlabel('$t$', fontsize=12)
+axes[1, 0].set_ylabel("$y''(t)$", fontsize=12)
+axes[1, 0].set_title('Segunda derivada', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Retrato de fase 3D (proyección y vs y')
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=0.8, alpha=0.7)
+axes[1, 1].plot(y0[0], y0[1], 'ro', markersize=8, label='CI (1, 0)')
+axes[1, 1].set_xlabel('$y$', fontsize=12)
+axes[1, 1].set_ylabel("$y'$", fontsize=12)
+axes[1, 1].set_title('Retrato de fase ($y$ vs $y\'$)', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 14 - EDO lineal homogénea de tercer orden")
+print("=" * 60)
+print(f"Ecuación característica: (r-1)³ = 0 → raíz triple r = 1")
+print(f"Solución general: y(t) = (A + Bt + Ct²)·e^t")
+print(f"Condiciones iniciales: y(0)=1, y'(0)=0, y''(0)=1")
+print(f"Solución particular: y(t) = (1 - t + t²)·e^t")
+print(f"\nComportamiento:")
+print(f"  • Crecimiento exponencial debido a e^t")
+print(f"  • Efecto polinómico modifica la tasa de crecimiento")
+```
+
+# Ejercicio 15
+
+**EDO de tercer orden con término no lineal**
+
+\begin{equation}
+y''' + y^2 = 0,\quad y(0) = 1,\ y'(0) = 0,\ y''(0) = 0
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden (no lineal)
+def sistema_ej15(t, y):
+    """
+    y[0] = y
+    y[1] = y'
+    y[2] = y''
+    Ecuación: y''' + y² = 0 → y''' = -y²
+    """
+    return [y[1], y[2], -y[0]**2]
+
+# Condiciones iniciales
+y0 = [1, 0, 0]  # y(0)=1, y'(0)=0, y''(0)=0
+t_span = (0, 4)
+t_eval = np.linspace(0, 4, 2000)
+
+# Resolver EDO no lineal (tercer orden)
+sol = solve_ivp(sistema_ej15, t_span, y0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Solución linealizada para t pequeño: y''' ≈ 0 → y ≈ 1 + 0·t + 0·t² = 1
+# Aproximación por serie de potencias: y(t) ≈ 1 - t³/6 + ...
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 15: EDO No Lineal de Tercer Orden $y\'\'\' + y^2 = 0$', 
+             fontsize=14, fontweight='bold')
+
+# Solución
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='Solución numérica')
+axes[0, 0].set_xlabel('$t$', fontsize=12)
+axes[0, 0].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 0].set_title('Solución (decrece desde 1)', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Primera derivada
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5, label="$y'(t)$")
+axes[0, 1].set_xlabel('$t$', fontsize=12)
+axes[0, 1].set_ylabel("$y'(t)$", fontsize=12)
+axes[0, 1].set_title('Primera derivada', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Segunda derivada
+axes[1, 0].plot(sol.t, sol.y[2], 'm-', linewidth=1.5, label="$y''(t)$")
+axes[1, 0].set_xlabel('$t$', fontsize=12)
+axes[1, 0].set_ylabel("$y''(t)$", fontsize=12)
+axes[1, 0].set_title('Segunda derivada', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Retrato de fase (y vs y')
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=0.8, alpha=0.7)
+axes[1, 1].plot(y0[0], y0[1], 'ro', markersize=8, label='CI (1, 0)')
+axes[1, 1].set_xlabel('$y$', fontsize=12)
+axes[1, 1].set_ylabel("$y'$", fontsize=12)
+axes[1, 1].set_title('Retrato de fase ($y$ vs $y\'$)', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: evolución en 3 variables
+fig2 = plt.figure(figsize=(10, 8))
+ax = fig2.add_subplot(111, projection='3d')
+ax.plot(sol.y[0], sol.y[1], sol.y[2], 'b-', linewidth=1, alpha=0.8)
+ax.plot([y0[0]], [y0[1]], [y0[2]], 'ro', markersize=8, label='Condición inicial')
+ax.set_xlabel('$y$', fontsize=12)
+ax.set_ylabel("$y'$", fontsize=12)
+ax.set_zlabel("$y''$", fontsize=12)
+ax.set_title('Espacio de fases 3D ($y$, $y\'$, $y\'\'$)', fontsize=14)
+ax.legend(fontsize=10)
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 15 - EDO no lineal de tercer orden")
+print("=" * 60)
+print(f"Ecuación: y''' + y² = 0")
+print(f"Condiciones iniciales: y(0)=1, y'(0)=0, y''(0)=0")
+print(f"\nComportamiento:")
+print(f"  • Sistema no lineal con términos cuadráticos")
+print(f"  • Para t pequeño: y(t) ≈ 1 - t³/6 (serie de potencias)")
+print(f"  • La derivada tercera negativa hace que y(t) disminuya")
+print(f"\nResultados numéricos:")
+print(f"  • Tiempo de simulación: {sol.t[-1]:.1f} s")
+print(f"  • y final: {sol.y[0][-1]:.6f}")
+print(f"  • y' final: {sol.y[1][-1]:.6f}")
+print(f"  • y'' final: {sol.y[2][-1]:.6f}")
+```
+
+# Ejercicio 16
+
+**Oscilador cúbico forzado**
+
+\begin{equation}
+y''' + y'' + y^3 = \cos(t),\quad y(0) = 0,\ y'(0) = 1,\ y''(0) = 0
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden
+def sistema_ej16(t, y):
+    """
+    y[0] = y
+    y[1] = y'
+    y[2] = y''
+    Ecuación: y''' + y'' + y³ = cos(t)  →  y''' = cos(t) - y'' - y³
+    """
+    return [y[1], y[2], np.cos(t) - y[2] - y[0]**3]
+
+# Condiciones iniciales
+y0 = [0, 1, 0]  # y(0)=0, y'(0)=1, y''(0)=0
+t_span = (0, 20)
+t_eval = np.linspace(0, 20, 3000)
+
+# Resolver EDO no lineal
+sol = solve_ivp(sistema_ej16, t_span, y0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 16: Oscilador Cúbico Forzado $y\'\'\' + y\'\' + y^3 = \\cos(t)$', 
+             fontsize=14, fontweight='bold')
+
+# Posición
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5)
+axes[0, 0].set_xlabel('$t$', fontsize=12)
+axes[0, 0].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 0].set_title('Posición $y(t)$', fontsize=12)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Velocidad
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5)
+axes[0, 1].set_xlabel('$t$', fontsize=12)
+axes[0, 1].set_ylabel("$y'(t)$", fontsize=12)
+axes[0, 1].set_title('Velocidad', fontsize=12)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Aceleración
+axes[1, 0].plot(sol.t, sol.y[2], 'm-', linewidth=1.5)
+axes[1, 0].set_xlabel('$t$', fontsize=12)
+axes[1, 0].set_ylabel("$y''(t)$", fontsize=12)
+axes[1, 0].set_title('Aceleración', fontsize=12)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Retrato de fase (y vs y')
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=0.8, alpha=0.7)
+axes[1, 1].plot(y0[0], y0[1], 'ro', markersize=8, label='CI (0, 1)')
+axes[1, 1].set_xlabel('$y$', fontsize=12)
+axes[1, 1].set_ylabel("$y'$", fontsize=12)
+axes[1, 1].set_title('Retrato de fase ($y$ vs $y\'$)', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Figura 3D del espacio de fases
+fig2 = plt.figure(figsize=(10, 8))
+ax = fig2.add_subplot(111, projection='3d')
+ax.plot(sol.y[0], sol.y[1], sol.y[2], 'b-', linewidth=0.8, alpha=0.7)
+ax.plot([y0[0]], [y0[1]], [y0[2]], 'ro', markersize=8, label='CI (0, 1, 0)')
+ax.set_xlabel('$y$', fontsize=12)
+ax.set_ylabel("$y'$", fontsize=12)
+ax.set_zlabel("$y''$", fontsize=12)
+ax.set_title('Espacio de fases 3D', fontsize=14)
+ax.legend(fontsize=10)
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 16 - Oscilador cúbico forzado")
+print("=" * 60)
+print(f"Ecuación: y''' + y'' + y³ = cos(t)")
+print(f"Condiciones: y(0)=0, y'(0)=1, y''(0)=0")
+print(f"\nCaracterísticas:")
+print(f"  • Término no lineal cúbico y³")
+print(f"  • Forzamiento externo cos(t)")
+print(f"  • Amortiguamiento en y''")
+print(f"  • Régimen transitorio seguido de oscilaciones estacionarias")
+```
+
+# Ejercicio 17
+
+**Ecuación tipo dispersión (Korteweg-de Vries simplificada)**
+
+\begin{equation}
+y''' - 6yy' = 0,\quad y(0) = 2,\ y'(0) = 0,\ y''(0) = -1
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden (KdV simplificada)
+def sistema_ej17(t, y):
+    """
+    y[0] = y
+    y[1] = y'
+    y[2] = y''
+    Ecuación: y''' - 6yy' = 0  →  y''' = 6yy'
+    """
+    return [y[1], y[2], 6 * y[0] * y[1]]
+
+# Condiciones iniciales
+y0 = [2, 0, -1]  # y(0)=2, y'(0)=0, y''(0)=-1
+t_span = (0, 5)
+t_eval = np.linspace(0, 5, 3000)
+
+# Resolver EDO no lineal
+sol = solve_ivp(sistema_ej17, t_span, y0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 17: Korteweg-de Vries Simplificada $y\'\'\' - 6yy\' = 0$', 
+             fontsize=14, fontweight='bold')
+
+# Posición
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5)
+axes[0, 0].set_xlabel('$t$', fontsize=12)
+axes[0, 0].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 0].set_title('Solución $y(t)$', fontsize=12)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Primera derivada
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5)
+axes[0, 1].set_xlabel('$t$', fontsize=12)
+axes[0, 1].set_ylabel("$y'(t)$", fontsize=12)
+axes[0, 1].set_title('Primera derivada', fontsize=12)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Segunda derivada
+axes[1, 0].plot(sol.t, sol.y[2], 'm-', linewidth=1.5)
+axes[1, 0].set_xlabel('$t$', fontsize=12)
+axes[1, 0].set_ylabel("$y''(t)$", fontsize=12)
+axes[1, 0].set_title('Segunda derivada', fontsize=12)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Retrato de fase (y vs y')
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=0.8, alpha=0.7)
+axes[1, 1].plot(y0[0], y0[1], 'ro', markersize=8, label='CI (2, 0)')
+axes[1, 1].set_xlabel('$y$', fontsize=12)
+axes[1, 1].set_ylabel("$y'$", fontsize=12)
+axes[1, 1].set_title('Retrato de fase', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Figura 3D
+fig2 = plt.figure(figsize=(10, 8))
+ax = fig2.add_subplot(111, projection='3d')
+ax.plot(sol.y[0], sol.y[1], sol.y[2], 'b-', linewidth=0.8, alpha=0.7)
+ax.plot([y0[0]], [y0[1]], [y0[2]], 'ro', markersize=8, label='CI (2, 0, -1)')
+ax.set_xlabel('$y$', fontsize=12)
+ax.set_ylabel("$y'$", fontsize=12)
+ax.set_zlabel("$y''$", fontsize=12)
+ax.set_title('Espacio de fases 3D', fontsize=14)
+ax.legend(fontsize=10)
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 17 - Korteweg-de Vries simplificada")
+print("=" * 60)
+print(f"Ecuación: y''' - 6yy' = 0")
+print(f"Condiciones: y(0)=2, y'(0)=0, y''(0)=-1")
+print(f"\nCaracterísticas:")
+print(f"  • Ecuación no lineal con término de convección yy'")
+print(f"  • Versión simplificada de la ecuación KdV")
+print(f"  • Modela ondas solitarias y fenómenos de dispersión")
+```
+
+# Ejercicio 18
+
+**Modelo no lineal de conducción**
+
+\begin{equation}
+y''' = -y y'' + y',\quad y(0) = 1,\ y'(0) = 0,\ y''(0) = -1
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de primer orden
+def sistema_ej18(t, y):
+    """
+    y[0] = y
+    y[1] = y'
+    y[2] = y''
+    Ecuación: y''' = -yy' + y' = y'(1 - y)
+    """
+    return [y[1], y[2], y[1] * (1 - y[0])]
+
+# Condiciones iniciales
+y0 = [1, 0, -1]  # y(0)=1, y'(0)=0, y''(0)=-1
+t_span = (0, 10)
+t_eval = np.linspace(0, 10, 3000)
+
+# Resolver EDO
+sol = solve_ivp(sistema_ej18, t_span, y0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 18: Modelo No Lineal de Conducción $y\'\'\' = -yy\' + y\'$', 
+             fontsize=14, fontweight='bold')
+
+# Posición
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=1.5)
+axes[0, 0].set_xlabel('$t$', fontsize=12)
+axes[0, 0].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 0].set_title('Solución $y(t)$', fontsize=12)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Velocidad
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=1.5)
+axes[0, 1].set_xlabel('$t$', fontsize=12)
+axes[0, 1].set_ylabel("$y'(t)$", fontsize=12)
+axes[0, 1].set_title('Velocidad', fontsize=12)
+axes[0, 1].grid(True, alpha=0.3)
+axes[0, 1].axhline(y=0, color='k', linestyle='-', alpha=0.2)
+
+# Aceleración
+axes[1, 0].plot(sol.t, sol.y[2], 'm-', linewidth=1.5)
+axes[1, 0].set_xlabel('$t$', fontsize=12)
+axes[1, 0].set_ylabel("$y''(t)$", fontsize=12)
+axes[1, 0].set_title('Aceleración', fontsize=12)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Retrato de fase (y vs y')
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=0.8, alpha=0.7)
+axes[1, 1].plot(y0[0], y0[1], 'ro', markersize=8, label='CI (1, 0)')
+axes[1, 1].set_xlabel('$y$', fontsize=12)
+axes[1, 1].set_ylabel("$y'$", fontsize=12)
+axes[1, 1].set_title('Retrato de fase', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Figura 3D
+fig2 = plt.figure(figsize=(10, 8))
+ax = fig2.add_subplot(111, projection='3d')
+ax.plot(sol.y[0], sol.y[1], sol.y[2], 'b-', linewidth=0.8, alpha=0.7)
+ax.plot([y0[0]], [y0[1]], [y0[2]], 'ro', markersize=8, label='CI (1, 0, -1)')
+ax.set_xlabel('$y$', fontsize=12)
+ax.set_ylabel("$y'$", fontsize=12)
+ax.set_zlabel("$y''$", fontsize=12)
+ax.set_title('Espacio de fases 3D', fontsize=14)
+ax.legend(fontsize=10)
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 18 - Modelo no lineal de conducción")
+print("=" * 60)
+print(f"Ecuación: y''' = y'(1 - y)")
+print(f"Condiciones: y(0)=1, y'(0)=0, y''(0)=-1")
+print(f"\nCaracterísticas:")
+print(f"  • Punto de equilibrio en y=1 (donde y'''=0)")
+print(f"  • Modelo con conducción no lineal")
+print(f"  • Término y'(1-y) amortigua o acelera según el valor de y")
+```
+
+# Ejercicio 19
+
+Una persona abre una cuenta bancaria con un saldo inicial de $2000$ dólares. Sea $b(t)$ el saldo en la cuenta en el tiempo t. Así, $b(0) = 2000$. El banco paga intereses a una tasa continua del $5\%$ anual. La persona realiza depósitos en la cuenta a una tasa continua de $s(t)$ dólares por año. Supogamos que $s(0) = 500$ y que $s(t)$ está aumentando a una tasa continua del $4\%$ anual (la persona puede ahorrar más conforme aumenta su ingreso con el tiempo). Brinda el sistema de ecuaciones diferenciales ordinarias y gráfica la solución $b(t)$ y $s(t)$.
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de EDOs
+def sistema_ej19(t, y):
+    """
+    y[0] = b(t) (saldo)
+    y[1] = s(t) (tasa de depósito)
+    db/dt = 0.05*b + s
+    ds/dt = 0.04*s
+    """
+    return [0.05 * y[0] + y[1], 0.04 * y[1]]
+
+# Condiciones iniciales
+y0 = [2000, 500]  # b(0)=2000, s(0)=500
+t_span = (0, 30)
+t_eval = np.linspace(0, 30, 2000)
+
+# Resolver el sistema
+sol = solve_ivp(sistema_ej19, t_span, y0, t_eval=t_eval, method='RK45')
+
+# Solución analítica para s(t): s(t) = 500 * e^(0.04t)
+s_analitica = 500 * np.exp(0.04 * sol.t)
+
+# Solución analítica para b(t): resolver EDO lineal no homogénea
+# b' - 0.05b = s(t) = 500·e^(0.04t)
+# Factor integrante: μ = e^(-0.05t)
+# d/dt(b·e^(-0.05t)) = 500·e^(0.04t)·e^(-0.05t) = 500·e^(-0.01t)
+# b·e^(-0.05t) = ∫500·e^(-0.01t) dt = -500/0.01·e^(-0.01t) + C = -50000·e^(-0.01t) + C
+# b(t) = e^(0.05t)[C - 50000·e^(-0.01t)]
+# Usando b(0)=2000: 2000 = C - 50000 → C = 52000
+# b(t) = e^(0.05t)[52000 - 50000·e^(-0.01t)] = 52000·e^(0.05t) - 50000·e^(0.04t)
+b_analitica = 52000 * np.exp(0.05 * sol.t) - 50000 * np.exp(0.04 * sol.t)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 19: Cuenta Bancaria con Depósitos Crecientes', 
+             fontsize=14, fontweight='bold')
+
+# Saldo b(t)
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='Solución numérica')
+axes[0, 0].plot(sol.t, b_analitica, 'r--', linewidth=1.5, alpha=0.7, 
+                label='Solución analítica')
+axes[0, 0].set_xlabel('Tiempo $t$ (años)', fontsize=12)
+axes[0, 0].set_ylabel('Saldo $b(t)$ (dólares)', fontsize=12)
+axes[0, 0].set_title('Evolución del saldo', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Tasa de depósito s(t)
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='Solución numérica')
+axes[0, 1].plot(sol.t, s_analitica, 'r--', linewidth=1.5, alpha=0.7, 
+                label='$s(t)=500e^{0.04t}$')
+axes[0, 1].set_xlabel('Tiempo $t$ (años)', fontsize=12)
+axes[0, 1].set_ylabel('Tasa de depósito $s(t)$ (dólares/año)', fontsize=12)
+axes[0, 1].set_title('Evolución de la capacidad de ahorro', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Retrato de fase (b vs s)
+axes[1, 0].plot(sol.y[0], sol.y[1], 'r-', linewidth=1.5, alpha=0.8)
+axes[1, 0].plot(y0[0], y0[1], 'ro', markersize=8, label='CI (2000, 500)')
+axes[1, 0].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=8, 
+                label=f'Final (t={sol.t[-1]:.0f} años)')
+axes[1, 0].set_xlabel('Saldo $b$ (dólares)', fontsize=12)
+axes[1, 0].set_ylabel('Tasa de depósito $s$ (dólares/año)', fontsize=12)
+axes[1, 0].set_title('Retrato de fase ($b$ vs $s$)', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Componentes del crecimiento de b
+intereses = 0.05 * sol.y[0]
+depositos = sol.y[1]
+axes[1, 1].plot(sol.t, intereses, 'b--', linewidth=1.5, alpha=0.7, 
+                label='Intereses (0.05·b)')
+axes[1, 1].plot(sol.t, depositos, 'g--', linewidth=1.5, alpha=0.7, 
+                label='Depósitos s(t)')
+axes[1, 1].plot(sol.t, intereses + depositos, 'r-', linewidth=1.5, 
+                label='db/dt total')
+axes[1, 1].set_xlabel('Tiempo $t$ (años)', fontsize=12)
+axes[1, 1].set_ylabel('Tasa de cambio (dólares/año)', fontsize=12)
+axes[1, 1].set_title('Componentes del crecimiento del saldo', fontsize=12)
+axes[1, 1].legend(fontsize=9)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Gráfica adicional en escala semilogarítmica para ver crecimiento exponencial
+fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+fig2.suptitle('Crecimiento exponencial (escala semilog)', fontsize=14, fontweight='bold')
+
+ax1.semilogy(sol.t, sol.y[0], 'b-', linewidth=2, label='Saldo b(t)')
+ax1.semilogy(sol.t, sol.y[1], 'g-', linewidth=2, label='Depósito s(t)')
+ax1.set_xlabel('Tiempo $t$ (años)', fontsize=12)
+ax1.set_ylabel('Valor (escala log)', fontsize=12)
+ax1.set_title('Crecimiento en escala logarítmica', fontsize=12)
+ax1.legend(fontsize=10)
+ax1.grid(True, alpha=0.3)
+
+# Tasa de crecimiento relativa
+crecimiento_relativo_b = (0.05 * sol.y[0] + sol.y[1]) / sol.y[0]
+ax2.plot(sol.t, crecimiento_relativo_b, 'r-', linewidth=2)
+ax2.set_xlabel('Tiempo $t$ (años)', fontsize=12)
+ax2.set_ylabel('(db/dt)/b', fontsize=12)
+ax2.set_title('Tasa de crecimiento relativa del saldo', fontsize=12)
+ax2.grid(True, alpha=0.3)
+ax2.axhline(y=0.09, color='k', linestyle='--', alpha=0.5, 
+            label='Asíntota ~9% anual')
+ax2.legend(fontsize=10)
+
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 19 - Cuenta bancaria con depósitos crecientes")
+print("=" * 60)
+print(f"Sistema de EDOs:")
+print(f"  db/dt = 0.05·b + s")
+print(f"  ds/dt = 0.04·s")
+print(f"\nCondiciones iniciales:")
+print(f"  b(0) = $2000")
+print(f"  s(0) = $500/año")
+print(f"\nSoluciones analíticas:")
+print(f"  s(t) = 500·e^(0.04t)")
+print(f"  b(t) = 52000·e^(0.05t) - 50000·e^(0.04t)")
+print(f"\nResultados numéricos:")
+print(f"  • s(10) = ${s_analitica[np.where(sol.t >= 10)[0][0]]:.2f}/año")
+print(f"  • b(10) = ${b_analitica[np.where(sol.t >= 10)[0][0]]:.2f}")
+print(f"  • s(30) = ${s_analitica[-1]:.2f}/año")
+print(f"  • b(30) = ${b_analitica[-1]:.2f}")
+print(f"\nComportamiento asintótico:")
+print(f"  • Para t grande, b(t) ≈ 52000·e^(0.05t) (domina interés compuesto)")
+print(f"  • La tasa de depósito crece a 4% anual")
+print(f"  • El saldo crece a ≈9% anual en el largo plazo")
+```
+
+
+# Ejercicio 20
+
+Aproxima la solución del siguiente sistema de ecuaciones diferenciales ordinarias
+
+\begin{eqnarray}
+x'(t) & = -6 x - 3 y\\
+y'(t) & = -15 x + 6y
+\end{eqnarray}
+
+donde $x(0)= 3$ y $y(0)=2$. Grafica cada una de las funciones y la trayectoria.
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import odeint
+
+# Definición del sistema de ecuaciones
+def sistema_20(z, t):
+    x, y = z
+    dxdt = -6*x - 3*y
+    dydt = -15*x + 6*y
+    return [dxdt, dydt]
+
+# Configuración
+t = np.linspace(0, 5, 500)  # Tiempo de 0 a 5
+z0 = [3, 2]                 # Condiciones iniciales [x0, y0]
+
+# Resolución
+solucion = odeint(sistema_20, z0, t)
+x = solucion[:, 0]
+y = solucion[:, 1]
+
+# Gráficas
+plt.figure(figsize=(12, 5))
+
+# Gráfica 1: Evolución temporal
+plt.subplot(1, 2, 1)
+plt.plot(t, x, label='x(t)', color='blue')
+plt.plot(t, y, label='y(t)', color='red')
+plt.title('Ejercicio 20: Solución vs Tiempo')
+plt.xlabel('Tiempo')
+plt.ylabel('Valor')
+plt.legend()
+plt.grid(True)
+
+# Gráfica 2: Espacio de fases
+plt.subplot(1, 2, 2)
+plt.plot(x, y, color='green', label='Trayectoria')
+plt.plot(x[0], y[0], 'go', label='Inicio')
+plt.title('Ejercicio 20: Trayectoria (y vs x)')
+plt.xlabel('x(t)')
+plt.ylabel('y(t)')
+plt.legend()
+plt.grid(True)
+
+plt.tight_layout()
+plt.show()   
+```
+
+# Ejercicio 21
+
+Considera la interacción de dos especies de animales en un hábitat. Considerando que las poblaciones $x(t)$ y $y(t)$ pueden ser modeladas por medio de las ecuaciones
+
+\begin{eqnarray}
+x'(t) & = 1.4 x - y\\
+y'(t) & = -1.25 x + 3.4y
+\end{eqnarray}
+
+donde $x(0)=7$ y $y(0)=3$. Grafica cada una de las funciones que brindan la población de cada especie al tiempo $t$.
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de EDOs
+def sistema_ej21(t, z):
+    """
+    z[0] = x(t) (población especie 1)
+    z[1] = y(t) (población especie 2)
+    x' = 1.4x - y
+    y' = -1.25x + 3.4y
+    """
+    x, y = z
+    return [1.4*x - y, -1.25*x + 3.4*y]
+
+# Condiciones iniciales
+z0 = [7, 3]  # x(0)=7, y(0)=3
+t_span = (0, 10)
+t_eval = np.linspace(0, 10, 2000)
+
+# Resolver el sistema
+sol = solve_ivp(sistema_ej21, t_span, z0, t_eval=t_eval, method='RK45')
+
+# Análisis de autovalores para entender el comportamiento
+A = np.array([[1.4, -1], [-1.25, 3.4]])
+autovalores, autovectores = np.linalg.eig(A)
+
+# Calcular el punto de equilibrio (resolviendo A·[x,y]^T = 0)
+# 1.4x - y = 0  →  y = 1.4x
+# -1.25x + 3.4y = 0  →  -1.25x + 3.4(1.4x) = -1.25x + 4.76x = 3.51x = 0 → x=0, y=0
+# Punto de equilibrio en (0,0)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 21: Sistema Lineal de Competencia', 
+             fontsize=14, fontweight='bold')
+
+# Población x(t)
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$ (Especie 1)')
+axes[0, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 0].set_ylabel('Población $x(t)$', fontsize=12)
+axes[0, 0].set_title('Especie 1', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# Población y(t)
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$ (Especie 2)')
+axes[0, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 1].set_ylabel('Población $y(t)$', fontsize=12)
+axes[0, 1].set_title('Especie 2', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Ambas poblaciones juntas
+axes[1, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+axes[1, 0].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+axes[1, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 0].set_ylabel('Población', fontsize=12)
+axes[1, 0].set_title('Comparación de ambas especies', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Trayectoria en el plano fase (x vs y)
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=2, alpha=0.8, 
+                label='Trayectoria')
+axes[1, 1].plot(z0[0], z0[1], 'ro', markersize=10, label='CI (7, 3)')
+axes[1, 1].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=10, 
+                label=f'Final t={sol.t[-1]:.1f}')
+# Dibujar los autovectores (direcciones de crecimiento)
+for i, (val, vec) in enumerate(zip(autovalores, autovectores.T)):
+    # Escalar para visualización
+    vec_scaled = vec / np.max(np.abs(vec)) * 15
+    axes[1, 1].arrow(0, 0, vec_scaled[0], vec_scaled[1], 
+                     head_width=1.5, head_length=1.5, 
+                     fc=f'C{i}', ec=f'C{i}', alpha=0.5,
+                     label=f'Autovector λ={val.real:.2f}{val.imag:+.2f}i' if val.imag != 0 else f'Autovector λ={val.real:.2f}')
+axes[1, 1].set_xlabel('$x$ (Especie 1)', fontsize=12)
+axes[1, 1].set_ylabel('$y$ (Especie 2)', fontsize=12)
+axes[1, 1].set_title('Trayectoria en el plano fase', fontsize=12)
+axes[1, 1].legend(fontsize=9)
+axes[1, 1].grid(True, alpha=0.3)
+axes[1, 1].axhline(y=0, color='k', linestyle='-', alpha=0.2)
+axes[1, 1].axvline(x=0, color='k', linestyle='-', alpha=0.2)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: crecimiento en escala semilog
+fig2, ax = plt.subplots(figsize=(10, 6))
+ax.semilogy(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+ax.semilogy(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+ax.set_xlabel('Tiempo $t$', fontsize=12)
+ax.set_ylabel('Población (escala log)', fontsize=12)
+ax.set_title('Crecimiento exponencial (escala semilogarítmica)', fontsize=14)
+ax.legend(fontsize=12)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 21 - Sistema lineal de competencia")
+print("=" * 60)
+print(f"Sistema:")
+print(f"  x' = 1.4x - y")
+print(f"  y' = -1.25x + 3.4y")
+print(f"\nCondiciones iniciales: x(0)=7, y(0)=3")
+print(f"\nMatriz del sistema:")
+print(f"  A = [[1.4, -1.0],")
+print(f"       [-1.25, 3.4]]")
+print(f"\nAutovalores:")
+for i, val in enumerate(autovalores):
+    print(f"  λ{i+1} = {val.real:.4f} + {val.imag:.4f}i")
+print(f"\nComportamiento:")
+if all(val.real > 0 for val in autovalores):
+    print("  • Ambos autovalores tienen parte real positiva")
+    print("  • Sistema inestable - las poblaciones crecen exponencialmente")
+    print("  • El punto de equilibrio (0,0) es un repulsor (nodo o foco inestable)")
+elif all(val.real < 0 for val in autovalores):
+    print("  • Ambos autovalores tienen parte real negativa")
+    print("  • Sistema estable - las poblaciones tienden a 0")
+else:
+    print("  • Autovalores con signos mixtos - punto de silla")
+print(f"\nResultados numéricos:")
+print(f"  • x(10) = {sol.y[0][-1]:.2f}")
+print(f"  • y(10) = {sol.y[1][-1]:.2f}")
+```
+
+# Ejercicio 22
+
+Aproxima la solución del siguiente sistema de ecuaciones diferenciales ordinarias,
+
+\begin{eqnarray}
+y'_1(t) & = -6.2 +1.1 y_1 - 0.8 y_2\\
+y'_2(t) & = -13.8 +2.1 y_1 -1.2 y_2
+\end{eqnarray}
+
+con los valores iniciales $y_1(0)=11$, $y_2(0)=4$. Grafica cada una de las funciones y la trayectoria.
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de EDOs
+def sistema_ej22(t, y):
+    """
+    y[0] = y1(t)
+    y[1] = y2(t)
+    y1' = -6.2 + 1.1y1 - 0.8y2
+    y2' = -13.8 + 2.1y1 - 1.2y2
+    """
+    return [-6.2 + 1.1*y[0] - 0.8*y[1], -13.8 + 2.1*y[0] - 1.2*y[1]]
+
+# Condiciones iniciales
+y0 = [11, 4]  # y1(0)=11, y2(0)=4
+t_span = (0, 20)
+t_eval = np.linspace(0, 20, 2000)
+
+# Resolver el sistema
+sol = solve_ivp(sistema_ej22, t_span, y0, t_eval=t_eval, method='RK45')
+
+# Encontrar el punto de equilibrio (y1', y2' = 0)
+# 1.1y1 - 0.8y2 = 6.2
+# 2.1y1 - 1.2y2 = 13.8
+A_eq = np.array([[1.1, -0.8], [2.1, -1.2]])
+b_eq = np.array([6.2, 13.8])
+punto_equilibrio = np.linalg.solve(A_eq, b_eq)
+
+# Matriz del sistema homogéneo asociado
+A_hom = np.array([[1.1, -0.8], [2.1, -1.2]])
+autovalores_hom, autovectores_hom = np.linalg.eig(A_hom)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 22: Sistema Lineal No Homogéneo', 
+             fontsize=14, fontweight='bold')
+
+# y1(t)
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$y_1(t)$')
+axes[0, 0].axhline(y=punto_equilibrio[0], color='r', linestyle='--', 
+                   linewidth=1.5, alpha=0.7, 
+                   label=f'Equilibrio $y_1={punto_equilibrio[0]:.2f}$')
+axes[0, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 0].set_ylabel('$y_1(t)$', fontsize=12)
+axes[0, 0].set_title('Variable $y_1$', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# y2(t)
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y_2(t)$')
+axes[0, 1].axhline(y=punto_equilibrio[1], color='r', linestyle='--', 
+                   linewidth=1.5, alpha=0.7, 
+                   label=f'Equilibrio $y_2={punto_equilibrio[1]:.2f}$')
+axes[0, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 1].set_ylabel('$y_2(t)$', fontsize=12)
+axes[0, 1].set_title('Variable $y_2$', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Ambas variables juntas
+axes[1, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$y_1(t)$')
+axes[1, 0].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y_2(t)$')
+axes[1, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 0].set_ylabel('Valor', fontsize=12)
+axes[1, 0].set_title('Comparación de $y_1$ y $y_2$', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Trayectoria en el plano fase (y1 vs y2)
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=2, alpha=0.8, 
+                label='Trayectoria')
+axes[1, 1].plot(y0[0], y0[1], 'ro', markersize=10, label='CI (11, 4)')
+axes[1, 1].plot(punto_equilibrio[0], punto_equilibrio[1], 'ks', 
+                markersize=10, label=f'Punto equilibrio\n({punto_equilibrio[0]:.2f}, {punto_equilibrio[1]:.2f})')
+axes[1, 1].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=10, 
+                label=f'Final t={sol.t[-1]:.1f}')
+axes[1, 1].set_xlabel('$y_1$', fontsize=12)
+axes[1, 1].set_ylabel('$y_2$', fontsize=12)
+axes[1, 1].set_title('Trayectoria en el plano fase', fontsize=12)
+axes[1, 1].legend(fontsize=9)
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: convergencia al equilibrio
+fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+fig2.suptitle('Análisis de convergencia', fontsize=14, fontweight='bold')
+
+# Distancia al equilibrio
+dist_y1 = np.abs(sol.y[0] - punto_equilibrio[0])
+dist_y2 = np.abs(sol.y[1] - punto_equilibrio[1])
+ax1.semilogy(sol.t, dist_y1, 'b-', linewidth=2, label='$|y_1 - y_{1eq}|$')
+ax1.semilogy(sol.t, dist_y2, 'g-', linewidth=2, label='$|y_2 - y_{2eq}|$')
+ax1.set_xlabel('Tiempo $t$', fontsize=12)
+ax1.set_ylabel('Distancia al equilibrio (log)', fontsize=12)
+ax1.set_title('Convergencia exponencial', fontsize=12)
+ax1.legend(fontsize=10)
+ax1.grid(True, alpha=0.3)
+
+# Campo de direcciones
+Y1, Y2 = np.meshgrid(np.linspace(5, 15, 20), np.linspace(0, 10, 20))
+dY1 = -6.2 + 1.1*Y1 - 0.8*Y2
+dY2 = -13.8 + 2.1*Y1 - 1.2*Y2
+# Normalizar flechas
+magnitud = np.sqrt(dY1**2 + dY2**2)
+dY1_norm = dY1 / magnitud
+dY2_norm = dY2 / magnitud
+ax2.quiver(Y1, Y2, dY1_norm, dY2_norm, alpha=0.6)
+ax2.plot(sol.y[0], sol.y[1], 'r-', linewidth=2, alpha=0.8, label='Trayectoria')
+ax2.plot(y0[0], y0[1], 'ro', markersize=8, label='CI')
+ax2.plot(punto_equilibrio[0], punto_equilibrio[1], 'ks', markersize=8, label='Equilibrio')
+ax2.set_xlabel('$y_1$', fontsize=12)
+ax2.set_ylabel('$y_2$', fontsize=12)
+ax2.set_title('Campo de direcciones y trayectoria', fontsize=12)
+ax2.legend(fontsize=10)
+ax2.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 60)
+print("Ejercicio 22 - Sistema lineal no homogéneo")
+print("=" * 60)
+print(f"Sistema:")
+print(f"  y1' = -6.2 + 1.1y1 - 0.8y2")
+print(f"  y2' = -13.8 + 2.1y1 - 1.2y2")
+print(f"\nCondiciones iniciales: y1(0)=11, y2(0)=4")
+print(f"\nPunto de equilibrio (resolviendo y1'=0, y2'=0):")
+print(f"  y1_eq = {punto_equilibrio[0]:.6f}")
+print(f"  y2_eq = {punto_equilibrio[1]:.6f}")
+print(f"\nMatriz del sistema homogéneo:")
+print(f"  A = [[{A_hom[0,0]}, {A_hom[0,1]}],")
+print(f"       [{A_hom[1,0]}, {A_hom[1,1]}]]")
+print(f"\nAutovalores del sistema homogéneo:")
+for i, val in enumerate(autovalores_hom):
+    print(f"  λ{i+1} = {val.real:.4f} + {val.imag:.4f}i")
+print(f"\nComportamiento:")
+if all(val.real < 0 for val in autovalores_hom):
+    print("  • Sistema estable - converge al punto de equilibrio")
+    print("  • El punto de equilibrio es un atractor")
+    t_media = -1 / max(val.real for val in autovalores_hom)
+    print(f"  • Tiempo característico de relajación: ~{t_media:.2f} unidades")
+elif all(val.real > 0 for val in autovalores_hom):
+    print("  • Sistema inestable - se aleja del equilibrio")
+else:
+    print("  • Autovalores con signos mixtos - punto de silla")
+print(f"\nResultados numéricos:")
+print(f"  • y1(20) = {sol.y[0][-1]:.6f}")
+print(f"  • y2(20) = {sol.y[1][-1]:.6f}")
+print(f"  • Error respecto al equilibrio: Δy1 = {sol.y[0][-1] - punto_equilibrio[0]:.2e}")
+```
+
+<br>
+
+Para cada uno de los sistemas de ecuaciones diferenciales ordinarias no lineales con valor inicial grafica las funciones y las respectivas trayectorias.
+
+# Ejercicio 23
+
+**Sistema logístico con depredación**
+
+\begin{equation}
+\begin{cases}
+\frac{dx}{dt} = x(1 - x) - xy \\
+\frac{dy}{dt} = -y + xy \\
+x(0) = 0.9,\quad y(0) = 0.1
+\end{cases}
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+from scipy.signal import find_peaks
+
+# Definir el sistema logístico con depredación
+def sistema_logistico_depredacion(t, estado):
+    """
+    estado[0] = x (presa con crecimiento logístico)
+    estado[1] = y (depredador)
+    """
+    x, y = estado
+    # dx/dt = x(1 - x) - xy = x(1 - x - y)
+    dxdt = x * (1 - x) - x * y
+    # dy/dt = -y + xy = y(x - 1)
+    dydt = -y + x * y
+    return [dxdt, dydt]
+
+# Condiciones iniciales
+x0 = 0.9   # población inicial de presas
+y0 = 0.1   # población inicial de depredadores
+estado0 = [x0, y0]
+
+# Tiempo de integración
+t_span = (0, 50)  # de t=0 a t=50
+t_eval = np.linspace(0, 50, 2000)  # puntos donde evaluar la solución
+
+# Resolver el sistema
+solucion = solve_ivp(sistema_logistico_depredacion, t_span, estado0, 
+                     t_eval=t_eval, method='RK45', rtol=1e-6, atol=1e-9)
+
+# Extraer resultados
+t = solucion.t
+x = solucion.y[0]
+y = solucion.y[1]
+
+# Calcular puntos de equilibrio
+# Puntos: (0,0), (1,0), (0,?) y (x*, y*) donde x* = 1, y* = 0? 
+# Del sistema: dx/dt=0 => x(1-x-y)=0, dy/dt=0 => y(x-1)=0
+# Soluciones: (0,0), (1,0), y cualquier punto con y=0 y x=0 o x=1
+
+# Análisis de puntos de equilibrio
+puntos_equilibrio = [(0, 0), (1, 0)]
+print("Puntos de equilibrio encontrados: (0,0) y (1,0)")
+
+# Crear figura con múltiples subplots
+fig = plt.figure(figsize=(15, 10))
+fig.suptitle('Sistema Logístico con Depredación', fontsize=16, fontweight='bold')
+
+# Gráfico 1: Poblaciones vs tiempo
+ax1 = plt.subplot(2, 3, 1)
+ax1.plot(t, x, 'b-', linewidth=2, label='Presas x(t)')
+ax1.plot(t, y, 'r-', linewidth=2, label='Depredadores y(t)')
+ax1.set_xlabel('Tiempo t')
+ax1.set_ylabel('Población')
+ax1.set_title('Evolución temporal de las poblaciones')
+ax1.legend()
+ax1.grid(True, alpha=0.3)
+ax1.set_ylim(-0.05, 1.05)
+
+# Gráfico 2: Retrato de fase
+ax2 = plt.subplot(2, 3, 2)
+ax2.plot(x, y, 'g-', linewidth=2, alpha=0.7)
+ax2.plot(x[0], y[0], 'go', markersize=8, label='Condición inicial')
+ax2.plot(x[-1], y[-1], 'ro', markersize=8, label='Estado final')
+for eq in puntos_equilibrio:
+    ax2.plot(eq[0], eq[1], 'ks', markersize=8, label=f'({eq[0]}, {eq[1]})' if eq == puntos_equilibrio[0] else "")
+ax2.set_xlabel('Presas (x)')
+ax2.set_ylabel('Depredadores (y)')
+ax2.set_title('Retrato de fase (Espacio de estados)')
+ax2.legend()
+ax2.grid(True, alpha=0.3)
+ax2.set_xlim(-0.05, 1.05)
+ax2.set_ylim(-0.05, 1.05)
+
+# Gráfico 3: Trayectoria 3D (tiempo, x, y)
+ax3 = plt.subplot(2, 3, 3, projection='3d')
+ax3.plot3D(t, x, y, 'm-', linewidth=1.5, alpha=0.8)
+ax3.scatter3D(t[0], x[0], y[0], color='green', s=50, label='Inicio')
+ax3.scatter3D(t[-1], x[-1], y[-1], color='red', s=50, label='Final')
+ax3.set_xlabel('Tiempo t')
+ax3.set_ylabel('Presas x')
+ax3.set_zlabel('Depredadores y')
+ax3.set_title('Trayectoria en 3D')
+ax3.legend()
+ax3.view_init(elev=25, azim=-60)
+
+# Gráfico 4: Campo vectorial
+ax4 = plt.subplot(2, 3, 4)
+# Crear malla para el campo vectorial
+X, Y = np.meshgrid(np.linspace(0, 1.1, 20), np.linspace(0, 1.1, 20))
+U = X * (1 - X - Y)
+V = Y * (X - 1)
+
+# Normalizar vectores para mejor visualización
+norm = np.sqrt(U**2 + V**2)
+norm[norm == 0] = 1  # Evitar división por cero
+U_norm = U / norm
+V_norm = V / norm
+
+# Graficar campo vectorial
+ax4.quiver(X, Y, U_norm, V_norm, norm, alpha=0.6, cmap='viridis')
+ax4.plot(x, y, 'w-', linewidth=2, alpha=0.9, label='Trayectoria')
+ax4.plot(x[0], y[0], 'go', markersize=8, label='Inicio')
+ax4.plot(x[-1], y[-1], 'ro', markersize=8, label='Final')
+for eq in puntos_equilibrio:
+    ax4.plot(eq[0], eq[1], 'ks', markersize=8)
+ax4.set_xlabel('Presas (x)')
+ax4.set_ylabel('Depredadores (y)')
+ax4.set_title('Campo vectorial del sistema')
+ax4.legend()
+ax4.grid(True, alpha=0.3)
+
+# Gráfico 5: Tasa de cambio
+ax5 = plt.subplot(2, 3, 5)
+dxdt = x * (1 - x - y)
+dydt = y * (x - 1)
+
+ax5.plot(t, dxdt, 'b-', linewidth=1.5, label='dx/dt (presas)', alpha=0.7)
+ax5.plot(t, dydt, 'r-', linewidth=1.5, label='dy/dt (depredadores)', alpha=0.7)
+ax5.set_xlabel('Tiempo t')
+ax5.set_ylabel('Tasa de cambio')
+ax5.set_title('Tasas de cambio de las poblaciones')
+ax5.legend()
+ax5.grid(True, alpha=0.3)
+ax5.axhline(y=0, color='k', linestyle='--', alpha=0.3)
+
+# Gráfico 6: Análisis de estabilidad
+ax6 = plt.subplot(2, 3, 6)
+
+# Función de Lyapunov candidata (energía del sistema)
+def lyapunov_candidata(x, y):
+    # V(x,y) = x - ln(x) + y - ln(y) (similar a Lotka-Volterra)
+    # Ajustado para dominio positivo
+    v = np.zeros_like(x)
+    mask = (x > 0) & (y > 0)
+    v[mask] = x[mask] - np.log(x[mask]) + y[mask] - np.log(y[mask])
+    v[~mask] = np.nan
+    return v
+
+V = lyapunov_candidata(x, y)
+ax6.plot(t, V, 'c-', linewidth=2)
+ax6.set_xlabel('Tiempo t')
+ax6.set_ylabel('V(x,y)')
+ax6.set_title('Función candidata de Lyapunov')
+ax6.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Análisis detallado
+print("=" * 60)
+print("ANÁLISIS DEL SISTEMA LOGÍSTICO CON DEPREDACCIÓN")
+print("=" * 60)
+print("\nECUACIONES DEL SISTEMA:")
+print("  dx/dt = x(1 - x) - xy = x(1 - x - y)")
+print("  dy/dt = -y + xy = y(x - 1)")
+print()
+
+print("PUNTOS DE EQUILIBRIO:")
+print("  Para dx/dt = 0: x=0  ó  1 - x - y = 0")
+print("  Para dy/dt = 0: y=0  ó  x = 1")
+print("  Puntos de equilibrio:")
+print("    E1 = (0, 0)  (extinción total)")
+print("    E2 = (1, 0)  (solo presas en capacidad de carga)")
+print("    Nota: No hay punto de coexistencia porque x=1 implica y=0")
+print()
+
+print("CONDICIONES INICIALES:")
+print(f"  x(0) = {x0}")
+print(f"  y(0) = {y0}")
+print()
+
+print("RESULTADOS NUMÉRICOS:")
+print(f"  Tiempo final: t = {t[-1]:.2f}")
+print(f"  Estado final: x = {x[-1]:.6f}, y = {y[-1]:.6f}")
+print()
+
+# Analizar comportamiento
+if x[-1] < 0.01:
+    print("  → Las presas se han extinguido prácticamente")
+if y[-1] < 0.01:
+    print("  → Los depredadores se han extinguido prácticamente")
+
+# Analizar tiempo de extinción (si ocurre)
+umbral = 0.01
+if np.any(y < umbral):
+    idx_extincion = np.where(y < umbral)[0][0]
+    print(f"\nTIEMPO DE EXTINCIÓN DE DEPREDADORES:")
+    print(f"  Los depredadores caen por debajo de {umbral} en t ≈ {t[idx_extincion]:.2f}")
+
+if np.any(x < umbral):
+    idx_extincion_x = np.where(x < umbral)[0][0]
+    print(f"\nTIEMPO DE EXTINCIÓN DE PRESAS:")
+    print(f"  Las presas caen por debajo de {umbral} en t ≈ {t[idx_extincion_x]:.2f}")
+
+# Comparación con modelo Lotka-Volterra clásico
+print("\nCOMPARACIÓN CON LOTKA-VOLTERRA CLÁSICO:")
+print("  Este modelo incluye competencia intraespecífica en presas (-x²)")
+print("  Esto estabiliza el sistema y lleva a la extinción de depredadores")
+print("  El punto de coexistencia desaparece porque la presa no puede")
+print("  sostener una población de depredadores en equilibrio")
+```
+
+# Ejercicio 24
+
+**Oscilador de Van der Pol**
+
+\begin{equation}
+\begin{cases}
+\frac{dx}{dt} = y \\
+\frac{dy}{dt} = \mu (1 - x^2)y - x \\
+x(0) = 2,\quad y(0) = 0,\quad \mu = 3
+\end{cases}
+\end{equation}
+
+A continuación se muestra la aproximación de la solución del sistema de ecuaciones diferenciales ordinarias de primer orden y las gráficas de las funciones $x(t)$ y $y(t)$. 
+
+```{python}
+#| code-fold: true
+#| fig-align: "center"
+
+def f(t, X, mu):
+  x, y = X
+  return[y, mu*(1-x**2)*y-x]
+
+
+mu = 3
+t0 = 0
+tf = 20
+s0 = [2, 0]
+t_values = np.linspace(t0, tf, 5000)
+
+edo_sol = integrate.solve_ivp(f, [t0, tf], s0, t_eval = t_values, args = (mu,))
+
+plt.figure(figsize=(8, 5))
+plt.plot(edo_sol.t, edo_sol.y[0], label = 'x(t)')
+plt.plot(edo_sol.t, edo_sol.y[1], label = 'y(t)')
+plt.xlabel('t')
+plt.ylabel('x/y')
+#plt.axhline(0, color='black', lw=1, ls='--')
+#plt.axvline(0, color='black', lw=1, ls='--')
+plt.legend()
+plt.grid()
+plt.show()
+
+```
+
+
+En este caso es posible observar que el sistema de ecuaciones diferenciales ordinarias de primer orden tiene un comportamiento oscilatorio, es decir, las funciones $x(t)$ y $y(t)$ oscilan con el tiempo. Este tipo de comportamiento es característico del oscilador de Van der Pol, donde la no linealidad introducida por el término $\mu (1 - x^2)y$ genera una dinámica compleja que puede incluir oscilaciones limitadas o incluso caos dependiendo del valor de $\mu$. Para observar cómo varía el comportamiento del sistema con diferentes valores de $\mu$, se pueden graficar las trayectorias para varios valores de $\mu$ y comparar los resultados. Estas trayectorias se denominan órbitas del oscilador, y pueden mostrar cómo el sistema evoluciona en el espacio de fases para diferentes condiciones iniciales y parámetros. A continuación se muestra la gráfica de las órbitas del oscilador de Van der Pol para varios valores de $\mu$.
+
+**Órbitas del oscilador**
+
+```{python}
+#| code-fold: true
+#| fig-align: "center"
+
+mu_s = [3, 5, 10, 15, 20]
+
+plt.figure(figsize=(8, 5))
+for mu in mu_s:
+  edo_sol = integrate.solve_ivp(f, [t0, tf], s0, t_eval = t_values, args = (mu,))
+  plt.plot(edo_sol.y[0], edo_sol.y[1], label = 'mu = ' + str(mu))
+plt.xlabel('x')
+plt.ylabel('y')
+#plt.axhline(0, color='black', lw=1, ls='--')
+#plt.axvline(0, color='black', lw=1, ls='--')
+plt.legend()
+plt.grid()
+plt.show()
+
+```
+
+
+# Ejercicio 25
+
+**Sistema de Lotka-Volterra**
+
+\begin{equation}
+\begin{cases}
+\frac{dx}{dt} = \alpha x - \beta xy \\
+\frac{dy}{dt} = \delta xy - \gamma y \\
+x(0) = 10,\quad y(0) = 5,\quad \alpha = 1.5,\ \beta = 1,\ \delta = 1,\ \gamma = 3
+\end{cases}
+\end{equation}  
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de Lotka-Volterra
+def lotka_volterra(t, estado, alpha, beta, delta, gamma):
+    """
+    estado[0] = x (presa)
+    estado[1] = y (depredador)
+    """
+    x, y = estado
+    dxdt = alpha * x - beta * x * y
+    dydt = delta * x * y - gamma * y
+    return [dxdt, dydt]
+
+# Parámetros del sistema
+alpha = 1.5  # tasa de crecimiento de presas
+beta = 1.0   # tasa de depredación
+delta = 1.0  # tasa de conversión de presas en depredadores
+gamma = 3.0  # tasa de mortalidad de depredadores
+
+# Condiciones iniciales
+x0 = 10.0   # población inicial de presas
+y0 = 5.0    # población inicial de depredadores
+estado0 = [x0, y0]
+
+# Tiempo de integración
+t_span = (0, 10)  # de t=0 a t=10
+t_eval = np.linspace(0, 10, 1000)  # puntos donde evaluar la solución
+
+# Resolver el sistema
+solucion = solve_ivp(lotka_volterra, t_span, estado0, t_eval=t_eval, 
+                     args=(alpha, beta, delta, gamma), method='RK45')
+
+# Extraer resultados
+t = solucion.t
+x = solucion.y[0]
+y = solucion.y[1]
+
+# Crear figura con múltiples subplots
+fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+# Gráfico 1: Poblaciones vs tiempo
+axes[0, 0].plot(t, x, 'b-', linewidth=2, label='Presas (x)')
+axes[0, 0].plot(t, y, 'r-', linewidth=2, label='Depredadores (y)')
+axes[0, 0].set_xlabel('Tiempo t')
+axes[0, 0].set_ylabel('Población')
+axes[0, 0].set_title('Evolución temporal de las poblaciones')
+axes[0, 0].legend()
+axes[0, 0].grid(True, alpha=0.3)
+
+# Gráfico 2: Retrato de fase (depredadores vs presas)
+axes[0, 1].plot(x, y, 'g-', linewidth=2)
+axes[0, 1].set_xlabel('Presas (x)')
+axes[0, 1].set_ylabel('Depredadores (y)')
+axes[0, 1].set_title('Retrato de fase (Espacio de fases)')
+axes[0, 1].grid(True, alpha=0.3)
+axes[0, 1].axhline(y=0, color='k', linestyle='--', alpha=0.3)
+axes[0, 1].axvline(x=0, color='k', linestyle='--', alpha=0.3)
+
+# Gráfico 3: Tasa de cambio
+tasa_cambio_x = alpha * x - beta * x * y
+tasa_cambio_y = delta * x * y - gamma * y
+
+axes[1, 0].plot(t, tasa_cambio_x, 'b-', linewidth=2, label='dx/dt (presas)')
+axes[1, 0].plot(t, tasa_cambio_y, 'r-', linewidth=2, label='dy/dt (depredadores)')
+axes[1, 0].set_xlabel('Tiempo t')
+axes[1, 0].set_ylabel('Tasa de cambio')
+axes[1, 0].set_title('Tasas de cambio de las poblaciones')
+axes[1, 0].legend()
+axes[1, 0].grid(True, alpha=0.3)
+axes[1, 0].axhline(y=0, color='k', linestyle='--', alpha=0.3)
+
+# Gráfico 4: Punto fijo y análisis
+# Calcular punto de equilibrio
+x_eq = gamma / delta  # punto de equilibrio para presas
+y_eq = alpha / beta   # punto de equilibrio para depredadores
+
+# Crear malla para el campo vectorial (opcional)
+X, Y = np.meshgrid(np.linspace(0, 20, 20), np.linspace(0, 15, 20))
+U = alpha * X - beta * X * Y
+V = delta * X * Y - gamma * Y
+
+# Normalizar vectores para mejor visualización
+norm = np.sqrt(U**2 + V**2)
+U_norm = U / norm
+V_norm = V / norm
+
+# Graficar campo vectorial
+axes[1, 1].quiver(X, Y, U_norm, V_norm, norm, alpha=0.6, cmap='viridis')
+axes[1, 1].plot(x, y, 'g-', linewidth=2, alpha=0.7, label='Trayectoria')
+axes[1, 1].plot(x[0], y[0], 'go', markersize=8, label='Cond. inicial')
+axes[1, 1].plot(x_eq, y_eq, 'ro', markersize=10, label='Punto de equilibrio')
+axes[1, 1].set_xlabel('Presas (x)')
+axes[1, 1].set_ylabel('Depredadores (y)')
+axes[1, 1].set_title('Campo vectorial y punto de equilibrio')
+axes[1, 1].legend()
+axes[1, 1].grid(True, alpha=0.3)
+axes[1, 1].set_xlim(0, 20)
+axes[1, 1].set_ylim(0, 15)
+
+plt.tight_layout()
+plt.show()
+
+# Análisis adicional: puntos de equilibrio
+print("=" * 50)
+print("ANÁLISIS DEL SISTEMA LOTKA-VOLTERRA")
+print("=" * 50)
+print(f"Parámetros:")
+print(f"  α (tasa crecimiento presas) = {alpha}")
+print(f"  β (tasa depredación) = {beta}")
+print(f"  δ (tasa conversión) = {delta}")
+print(f"  γ (tasa mortalidad depredadores) = {gamma}")
+print()
+
+print("Puntos de equilibrio:")
+print(f"  Punto trivial: (0, 0)")
+print(f"  Punto no trivial: ({x_eq:.2f}, {y_eq:.2f})")
+print(f"    - Presas en equilibrio: x = γ/δ = {gamma}/{delta} = {x_eq:.2f}")
+print(f"    - Depredadores en equilibrio: y = α/β = {alpha}/{beta} = {y_eq:.2f}")
+print()
+
+print("Resultados numéricos:")
+print(f"  Población final (t={t[-1]:.2f}):")
+print(f"    - Presas: {x[-1]:.2f}")
+print(f"    - Depredadores: {y[-1]:.2f}")
+print()
+
+# Analizar periodicidad (aproximada)
+from scipy.signal import find_peaks
+peaks_x, _ = find_peaks(x)
+if len(peaks_x) > 1:
+    periodo_promedio = np.mean(np.diff(t[peaks_x]))
+    print(f"Periodo aproximado de oscilación: {periodo_promedio:.2f} unidades de tiempo")
+```
+
+# Ejercicio 26
+
+**Interacción no lineal seno-coseno**
+
+\begin{equation}
+\begin{cases}
+\frac{dx}{dt} = \sin(y) - x^3 \\
+\frac{dy}{dt} = \cos(x) - y^2 \\
+x(0) = 1,\quad y(0) = 0
+\end{cases}
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema no lineal
+def sistema_ej26(t, z):
+    """
+    z[0] = x(t)
+    z[1] = y(t)
+    
+    dx/dt = sin(y) - x^3
+    dy/dt = cos(x) - y^2
+    """
+    x, y = z
+    dxdt = np.sin(y) - x**3
+    dydt = np.cos(x) - y**2
+    return [dxdt, dydt]
+
+# Condiciones iniciales
+x0, y0 = 1, 0
+z0 = [x0, y0]
+
+# Intervalo de tiempo
+t_span = (0, 30)
+t_eval = np.linspace(0, 30, 5000)
+
+# Resolver el sistema
+sol = solve_ivp(sistema_ej26, t_span, z0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Encontrar puntos de equilibrio aproximados (donde dx/dt=0 y dy/dt=0)
+# sin(y) = x^3, cos(x) = y^2
+# Buscamos en la región donde x,y son pequeños
+
+# Calcular trayectorias adicionales
+condiciones_adicionales = [
+    [0.5, 0.5],
+    [-0.5, -0.5],
+    [1.5, -0.5],
+    [-1, 1],
+    [2, 1]
+]
+
+trayectorias = []
+for ci in condiciones_adicionales:
+    sol_aux = solve_ivp(sistema_ej26, t_span, ci, t_eval=t_eval,
+                        method='RK45', rtol=1e-8, atol=1e-8)
+    trayectorias.append(sol_aux)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+fig.suptitle('Ejercicio 26: Interacción No Lineal Seno-Coseno\n'
+             '$\\frac{dx}{dt} = \\sin(y) - x^3,\\quad \\frac{dy}{dt} = \\cos(x) - y^2$',
+             fontsize=14, fontweight='bold')
+
+# x(t)
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+axes[0, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 0].set_ylabel('$x(t)$', fontsize=12)
+axes[0, 0].set_title('Variable $x(t)$', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# y(t)
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+axes[0, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 1].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 1].set_title('Variable $y(t)$', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Ambas variables
+axes[1, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+axes[1, 0].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+axes[1, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 0].set_ylabel('Variables', fontsize=12)
+axes[1, 0].set_title('Comparación de $x(t)$ y $y(t)$', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Trayectoria en el plano fase
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=2.5, alpha=0.9,
+                label=f'Trayectoria principal (CI: x={x0}, y={y0})')
+
+# Trayectorias adicionales
+colors = ['orange', 'purple', 'brown', 'pink', 'cyan']
+for i, traj in enumerate(trayectorias):
+    axes[1, 1].plot(traj.y[0], traj.y[1], '-', color=colors[i], linewidth=1.5, alpha=0.6,
+                    label=f'CI: ({condiciones_adicionales[i][0]}, {condiciones_adicionales[i][1]})')
+
+axes[1, 1].plot(x0, y0, 'ro', markersize=10, label='CI principal')
+axes[1, 1].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=8,
+                label=f'Final t={sol.t[-1]:.1f}')
+
+# Nuliclinas aproximadas
+x_vals = np.linspace(-3, 3, 200)
+# dx/dt=0 → sin(y) = x^3 → y = arcsin(x^3) (aproximado)
+# dy/dt=0 → cos(x) = y^2 → y = ±sqrt(cos(x)), donde cos(x)>=0
+
+# Graficar nuliclina dy/dt=0 (parte positiva)
+x_nulicline = np.linspace(-np.pi/2, np.pi/2, 200)
+y_pos = np.sqrt(np.cos(x_nulicline))
+y_neg = -np.sqrt(np.cos(x_nulicline))
+axes[1, 1].plot(x_nulicline, y_pos, 'g--', linewidth=1.5, alpha=0.5, label='Nuliclina $dy/dt=0$')
+axes[1, 1].plot(x_nulicline, y_neg, 'g--', linewidth=1.5, alpha=0.5)
+
+# Nuliclina dx/dt=0 (solución implícita sin(y)=x^3)
+x_nulicline_dx = np.linspace(-2, 2, 200)
+y_dx = np.arcsin(np.clip(x_nulicline_dx**3, -1, 1))
+axes[1, 1].plot(x_nulicline_dx, y_dx, 'b--', linewidth=1.5, alpha=0.5, label='Nuliclina $dx/dt=0$')
+
+axes[1, 1].set_xlabel('$x$', fontsize=12)
+axes[1, 1].set_ylabel('$y$', fontsize=12)
+axes[1, 1].set_title('Plano fase - Trayectorias', fontsize=12)
+axes[1, 1].legend(fontsize=8, loc='upper right')
+axes[1, 1].grid(True, alpha=0.3)
+axes[1, 1].set_xlim(-3, 3)
+axes[1, 1].set_ylim(-2.5, 2.5)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: Campo de direcciones
+fig2, ax = plt.subplots(figsize=(10, 8))
+
+x_range = np.linspace(-2.5, 2.5, 20)
+y_range = np.linspace(-2, 2, 20)
+X, Y = np.meshgrid(x_range, y_range)
+dX = np.sin(Y) - X**3
+dY = np.cos(X) - Y**2
+
+magnitud = np.sqrt(dX**2 + dY**2)
+magnitud[magnitud == 0] = 1
+dX_norm = dX / magnitud
+dY_norm = dY / magnitud
+
+ax.quiver(X, Y, dX_norm, dY_norm, alpha=0.5, width=0.005, scale=15)
+ax.plot(sol.y[0], sol.y[1], 'r-', linewidth=2, alpha=0.8, label='Trayectoria principal')
+
+# Puntos de equilibrio aproximados
+# Se pueden encontrar resolviendo sin(y)=x^3, cos(x)=y^2
+ax.set_xlabel('$x$', fontsize=14)
+ax.set_ylabel('$y$', fontsize=14)
+ax.set_title('Campo de direcciones', fontsize=14, fontweight='bold')
+ax.legend(fontsize=10)
+ax.grid(True, alpha=0.3)
+ax.set_xlim(-2.5, 2.5)
+ax.set_ylim(-2, 2)
+
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 70)
+print("Ejercicio 26 - Interacción No Lineal Seno-Coseno")
+print("=" * 70)
+print("\nEcuaciones:")
+print("  dx/dt = sin(y) - x³")
+print("  dy/dt = cos(x) - y²")
+print(f"\nCondiciones iniciales: x(0)={x0}, y(0)={y0}")
+print("\nCaracterísticas:")
+print("  • Sistema con simetría mixta (funciones trigonométricas y polinomiales)")
+print("  • No linealidad fuerte")
+print("  • Múltiples puntos de equilibrio potenciales")
+print("  • Comportamiento complejo dependiendo de la región inicial")
+```
+
+# Ejercicio 27
+
+**FitzHugh-Nagumo (modelo de neurona)**
+
+\begin{equation}
+\begin{cases}
+\frac{dv}{dt} = v - \frac{v^3}{3} - w + I \\
+\frac{dw}{dt} = 0.08(v + 0.7 - 0.8w) \\
+v(0) = -1,\quad w(0) = 1,\quad I = 0.5
+\end{cases}
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Parámetros
+I = 0.5  # Corriente externa
+a = 0.08  # Parámetro de tiempo para w
+b = 0.7   # Parámetro de umbral
+c = 0.8   # Parámetro de recuperación
+
+# Definir el sistema FitzHugh-Nagumo
+def sistema_ej27(t, z):
+    """
+    z[0] = v(t) (potencial de membrana)
+    z[1] = w(t) (variable de recuperación)
+    
+    dv/dt = v - v³/3 - w + I
+    dw/dt = a*(v + b - c*w)
+    """
+    v, w = z
+    dvdt = v - v**3/3 - w + I
+    dwdt = a * (v + b - c * w)
+    return [dvdt, dwdt]
+
+# Condiciones iniciales
+v0, w0 = -1, 1
+z0 = [v0, w0]
+
+# Intervalo de tiempo
+t_span = (0, 100)
+t_eval = np.linspace(0, 100, 5000)
+
+# Resolver el sistema
+sol = solve_ivp(sistema_ej27, t_span, z0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Encontrar punto de equilibrio aproximado
+# Resolver: v - v³/3 - w + I = 0, v + b - c*w = 0
+# De la segunda: w = (v + b)/c
+# Sustituir en primera: v - v³/3 - (v+b)/c + I = 0
+
+# Método numérico para encontrar v_eq
+def f_eq(v):
+    return v - v**3/3 - (v + b)/c + I
+
+v_vals = np.linspace(-2, 2, 100)
+f_vals = f_eq(v_vals)
+# Encontrar raíz cercana a v=0
+v_eq = v_vals[np.argmin(np.abs(f_vals))]
+w_eq = (v_eq + b) / c
+
+# Calcular trayectorias adicionales
+condiciones_adicionales = [
+    [0, 0],
+    [-2, 2],
+    [2, -1],
+    [-1.5, 1.5],
+    [1, -0.5]
+]
+
+trayectorias = []
+for ci in condiciones_adicionales:
+    sol_aux = solve_ivp(sistema_ej27, t_span, ci, t_eval=t_eval,
+                        method='RK45', rtol=1e-8, atol=1e-8)
+    trayectorias.append(sol_aux)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+fig.suptitle('Ejercicio 27: Modelo FitzHugh-Nagumo (Neurona)\n'
+             f'$\\frac{{dv}}{{dt}} = v - \\frac{{v^3}}{{3}} - w + {I},\\quad '
+             f'\\frac{{dw}}{{dt}} = {a}(v + {b} - {c}w)$',
+             fontsize=14, fontweight='bold')
+
+# v(t) - potencial de membrana
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$v(t)$ (potencial)')
+axes[0, 0].axhline(y=v_eq, color='r', linestyle='--', linewidth=1.5, alpha=0.7,
+                   label=f'Equilibrio $v={v_eq:.3f}$')
+axes[0, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 0].set_ylabel('$v(t)$', fontsize=12)
+axes[0, 0].set_title('Potencial de membrana', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# w(t) - variable de recuperación
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$w(t)$ (recuperación)')
+axes[0, 1].axhline(y=w_eq, color='r', linestyle='--', linewidth=1.5, alpha=0.7,
+                   label=f'Equilibrio $w={w_eq:.3f}$')
+axes[0, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 1].set_ylabel('$w(t)$', fontsize=12)
+axes[0, 1].set_title('Variable de recuperación', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Ambas variables juntas
+axes[1, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$v(t)$')
+axes[1, 0].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$w(t)$')
+axes[1, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 0].set_ylabel('Variables', fontsize=12)
+axes[1, 0].set_title('Evolución temporal de v y w', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+axes[1, 0].set_xlim(0, 50)  # Mostrar primeros 50 segundos
+
+# Trayectoria en el plano fase (v vs w)
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=2.5, alpha=0.9,
+                label=f'Trayectoria principal (CI: v={v0}, w={w0})')
+
+# Trayectorias adicionales
+colors = ['orange', 'purple', 'brown', 'pink', 'cyan']
+for i, traj in enumerate(trayectorias):
+    axes[1, 1].plot(traj.y[0], traj.y[1], '-', color=colors[i], linewidth=1.5, alpha=0.6,
+                    label=f'CI: ({condiciones_adicionales[i][0]}, {condiciones_adicionales[i][1]})')
+
+# Punto de equilibrio
+axes[1, 1].plot(v_eq, w_eq, 'ks', markersize=12, label=f'Punto equilibrio ({v_eq:.3f}, {w_eq:.3f})')
+axes[1, 1].plot(v0, w0, 'ro', markersize=10, label='CI principal')
+axes[1, 1].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=8,
+                label=f'Final t={sol.t[-1]:.1f}')
+
+# Nuliclinas
+v_vals_nul = np.linspace(-2.5, 2.5, 200)
+# dv/dt=0 → w = v - v³/3 + I
+w_nulicline_v = v_vals_nul - v_vals_nul**3/3 + I
+# dw/dt=0 → w = (v + b)/c
+w_nulicline_w = (v_vals_nul + b) / c
+
+axes[1, 1].plot(v_vals_nul, w_nulicline_v, 'b--', linewidth=1.5, alpha=0.5,
+                label='Nuliclina $dv/dt=0$')
+axes[1, 1].plot(v_vals_nul, w_nulicline_w, 'g--', linewidth=1.5, alpha=0.5,
+                label='Nuliclina $dw/dt=0$')
+
+axes[1, 1].set_xlabel('$v$ (potencial)', fontsize=12)
+axes[1, 1].set_ylabel('$w$ (recuperación)', fontsize=12)
+axes[1, 1].set_title('Plano fase - Trayectoria y nuliclinas', fontsize=12)
+axes[1, 1].legend(fontsize=8, loc='upper right')
+axes[1, 1].grid(True, alpha=0.3)
+axes[1, 1].set_xlim(-2.5, 2.5)
+axes[1, 1].set_ylim(-1, 2.5)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: Espacio de fase con campo de direcciones
+fig2, ax = plt.subplots(figsize=(10, 8))
+
+v_range = np.linspace(-2.5, 2.5, 20)
+w_range = np.linspace(-1, 2.5, 20)
+V, W = np.meshgrid(v_range, w_range)
+dV = V - V**3/3 - W + I
+dW = a * (V + b - c * W)
+
+magnitud = np.sqrt(dV**2 + dW**2)
+magnitud[magnitud == 0] = 1
+dV_norm = dV / magnitud
+dW_norm = dW / magnitud
+
+ax.quiver(V, W, dV_norm, dW_norm, alpha=0.5, width=0.005, scale=15)
+ax.plot(sol.y[0], sol.y[1], 'r-', linewidth=2.5, alpha=0.9, label='Trayectoria principal')
+ax.plot(v_eq, w_eq, 'ks', markersize=12, label='Punto de equilibrio')
+ax.plot(v0, w0, 'ro', markersize=10, label='CI')
+
+# Nuliclinas
+ax.plot(v_vals_nul, w_nulicline_v, 'b--', linewidth=2, alpha=0.6, label='$dv/dt=0$')
+ax.plot(v_vals_nul, w_nulicline_w, 'g--', linewidth=2, alpha=0.6, label='$dw/dt=0$')
+
+ax.set_xlabel('$v$ (potencial de membrana)', fontsize=14)
+ax.set_ylabel('$w$ (variable de recuperación)', fontsize=14)
+ax.set_title('Campo de direcciones y trayectoria', fontsize=14, fontweight='bold')
+ax.legend(fontsize=10)
+ax.grid(True, alpha=0.3)
+ax.set_xlim(-2.5, 2.5)
+ax.set_ylim(-1, 2.5)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: Potencial vs tiempo (mostrando disparos)
+fig3, ax = plt.subplots(figsize=(12, 5))
+ax.plot(sol.t, sol.y[0], 'b-', linewidth=1.5)
+ax.set_xlabel('Tiempo $t$', fontsize=12)
+ax.set_ylabel('Potencial de membrana $v(t)$', fontsize=12)
+ax.set_title('Actividad neuronal (potencial de acción)', fontsize=14)
+ax.grid(True, alpha=0.3)
+ax.set_xlim(0, 50)
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 70)
+print("Ejercicio 27 - Modelo FitzHugh-Nagumo (Neurona)")
+print("=" * 70)
+print("\nParámetros:")
+print(f"  I = {I} (corriente externa)")
+print(f"  a = {a} (parámetro de tiempo para w)")
+print(f"  b = {b} (parámetro de umbral)")
+print(f"  c = {c} (parámetro de recuperación)")
+print("\nEcuaciones:")
+print("  dv/dt = v - v³/3 - w + I")
+print("  dw/dt = a(v + b - c*w)")
+print(f"\nCondiciones iniciales: v(0)={v0}, w(0)={w0}")
+print(f"\nPunto de equilibrio aproximado:")
+print(f"  v_eq ≈ {v_eq:.6f}")
+print(f"  w_eq ≈ {w_eq:.6f}")
+print("\nInterpretación biológica:")
+print("  • v: potencial de membrana de la neurona")
+print("  • w: variable de recuperación (canales iónicos)")
+print("  • I: corriente externa aplicada")
+print("  • El sistema muestra comportamiento de oscilador de relajación")
+print("  • Simula potenciales de acción (disparos neuronales)")
+```
+
+# Ejercicio 28
+
+**Sistema no autónomo**
+
+\begin{equation}
+\begin{cases}
+\frac{dx}{dt} = x \sin(t) + y^2 \\
+\frac{dy}{dt} = -y \cos(t) + x \\
+x(0) = 1,\quad y(0) = -1
+\end{cases}
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema no autónomo (dependencia explícita de t)
+def sistema_ej28(t, z):
+    """
+    z[0] = x(t)
+    z[1] = y(t)
+    
+    dx/dt = x*sin(t) + y²
+    dy/dt = -y*cos(t) + x
+    """
+    x, y = z
+    dxdt = x * np.sin(t) + y**2
+    dydt = -y * np.cos(t) + x
+    return [dxdt, dydt]
+
+# Condiciones iniciales
+x0, y0 = 1, -1
+z0 = [x0, y0]
+
+# Intervalo de tiempo
+t_span = (0, 20)
+t_eval = np.linspace(0, 20, 5000)
+
+# Resolver el sistema
+sol = solve_ivp(sistema_ej28, t_span, z0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Calcular trayectorias adicionales
+condiciones_adicionales = [
+    [0.5, 0],
+    [-0.5, 0.5],
+    [1.5, -0.5],
+    [0, -1.5],
+    [-1, 1]
+]
+
+trayectorias = []
+for ci in condiciones_adicionales:
+    sol_aux = solve_ivp(sistema_ej28, t_span, ci, t_eval=t_eval,
+                        method='RK45', rtol=1e-8, atol=1e-8)
+    trayectorias.append(sol_aux)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+fig.suptitle('Ejercicio 28: Sistema No Autónomo\n'
+             '$\\frac{dx}{dt} = x\\sin(t) + y^2,\\quad \\frac{dy}{dt} = -y\\cos(t) + x$',
+             fontsize=14, fontweight='bold')
+
+# x(t)
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+axes[0, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 0].set_ylabel('$x(t)$', fontsize=12)
+axes[0, 0].set_title('Variable $x(t)$', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# y(t)
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+axes[0, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 1].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 1].set_title('Variable $y(t)$', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+
+# Ambas variables juntas
+axes[1, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+axes[1, 0].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+axes[1, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 0].set_ylabel('Variables', fontsize=12)
+axes[1, 0].set_title('Comparación de $x(t)$ y $y(t)$', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+
+# Trayectoria en el plano fase (x vs y)
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=2.5, alpha=0.9,
+                label=f'Trayectoria principal (CI: x={x0}, y={y0})')
+
+# Trayectorias adicionales
+colors = ['orange', 'purple', 'brown', 'pink', 'cyan']
+for i, traj in enumerate(trayectorias):
+    axes[1, 1].plot(traj.y[0], traj.y[1], '-', color=colors[i], linewidth=1.5, alpha=0.6,
+                    label=f'CI: ({condiciones_adicionales[i][0]}, {condiciones_adicionales[i][1]})')
+
+axes[1, 1].plot(x0, y0, 'ro', markersize=10, label='CI principal')
+axes[1, 1].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=8,
+                label=f'Final t={sol.t[-1]:.1f}')
+
+axes[1, 1].set_xlabel('$x$', fontsize=12)
+axes[1, 1].set_ylabel('$y$', fontsize=12)
+axes[1, 1].set_title('Trayectoria en el plano fase', fontsize=12)
+axes[1, 1].legend(fontsize=8, loc='best')
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: Campo de direcciones (requiere fijar un tiempo)
+# Para sistemas no autónomos, el campo de direcciones cambia con t
+# Mostramos una instantánea en t=0 y t=5
+fig2, axes2 = plt.subplots(1, 2, figsize=(14, 6))
+fig2.suptitle('Campo de direcciones en diferentes tiempos (sistema no autónomo)',
+              fontsize=14, fontweight='bold')
+
+x_range = np.linspace(-3, 3, 20)
+y_range = np.linspace(-3, 3, 20)
+X, Y = np.meshgrid(x_range, y_range)
+
+for idx, t0 in enumerate([0, 5]):
+    dX = X * np.sin(t0) + Y**2
+    dY = -Y * np.cos(t0) + X
+    
+    magnitud = np.sqrt(dX**2 + dY**2)
+    magnitud[magnitud == 0] = 1
+    dX_norm = dX / magnitud
+    dY_norm = dY / magnitud
+    
+    axes2[idx].quiver(X, Y, dX_norm, dY_norm, alpha=0.5, width=0.005, scale=15)
+    axes2[idx].plot(sol.y[0], sol.y[1], 'r-', linewidth=1.5, alpha=0.7)
+    axes2[idx].plot(x0, y0, 'ro', markersize=8)
+    axes2[idx].set_xlabel('$x$', fontsize=12)
+    axes2[idx].set_ylabel('$y$', fontsize=12)
+    axes2[idx].set_title(f'Campo en t = {t0}', fontsize=12)
+    axes2[idx].grid(True, alpha=0.3)
+    axes2[idx].set_xlim(-3, 3)
+    axes2[idx].set_ylim(-3, 3)
+
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 70)
+print("Ejercicio 28 - Sistema No Autónomo")
+print("=" * 70)
+print("\nEcuaciones:")
+print("  dx/dt = x·sin(t) + y²")
+print("  dy/dt = -y·cos(t) + x")
+print(f"\nCondiciones iniciales: x(0)={x0}, y(0)={y0}")
+print("\nCaracterísticas:")
+print("  • Dependencia explícita del tiempo (coeficientes variables)")
+print("  • Términos no lineales (y²)")
+print("  • El campo de direcciones cambia con el tiempo")
+print("\nResultados numéricos:")
+print(f"  • x(20) = {sol.y[0][-1]:.6f}")
+print(f"  • y(20) = {sol.y[1][-1]:.6f}")
+
+```
+
+
+# Ejercicio 29
+
+**Modelo epidemiológico SIR (en este caso no graficar la trayectoria)**
+
+\begin{equation}
+\begin{cases}
+\frac{dS}{dt} = -\beta S I \\
+\frac{dI}{dt} = \beta S I - \gamma I \\
+\frac{dR}{dt} = \gamma I \\
+S(0) = 0.99,\quad I(0) = 0.01,\quad R(0) = 0,\quad \beta = 0.5,\ \gamma = 0.1
+\end{cases}
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Parámetros
+beta = 0.5   # Tasa de transmisión
+gamma = 0.1  # Tasa de recuperación
+
+# Definir el sistema SIR
+def sistema_ej29(t, y):
+    """
+    y[0] = S(t) (Susceptibles)
+    y[1] = I(t) (Infectados)
+    y[2] = R(t) (Recuperados)
+    
+    dS/dt = -β·S·I
+    dI/dt = β·S·I - γ·I
+    dR/dt = γ·I
+    """
+    S, I, R = y
+    dSdt = -beta * S * I
+    dIdt = beta * S * I - gamma * I
+    dRdt = gamma * I
+    return [dSdt, dIdt, dRdt]
+
+# Condiciones iniciales
+S0, I0, R0 = 0.99, 0.01, 0.0
+y0 = [S0, I0, R0]
+
+# Intervalo de tiempo
+t_span = (0, 100)
+t_eval = np.linspace(0, 100, 5000)
+
+# Resolver el sistema
+sol = solve_ivp(sistema_ej29, t_span, y0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Calcular el número reproductivo básico R0
+R0_epidemico = beta / gamma
+
+# Encontrar pico de infectados
+pico_idx = np.argmax(sol.y[1])
+t_pico = sol.t[pico_idx]
+I_max = sol.y[1][pico_idx]
+
+# Encontrar tiempo donde I(t) cae por debajo del 1% del pico
+idx_fin = np.where(sol.y[1] < 0.01 * I_max)[0]
+if len(idx_fin) > 0:
+    t_fin_epidemia = sol.t[idx_fin[0]]
+else:
+    t_fin_epidemia = sol.t[-1]
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+fig.suptitle('Ejercicio 29: Modelo Epidemiológico SIR\n'
+             f'$\\frac{{dS}}{{dt}} = -{beta}SI,\\quad '
+             f'\\frac{{dI}}{{dt}} = {beta}SI - {gamma}I,\\quad '
+             f'\\frac{{dR}}{{dt}} = {gamma}I$',
+             fontsize=14, fontweight='bold')
+
+# Susceptibles S(t)
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$S(t)$ (Susceptibles)')
+axes[0, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 0].set_ylabel('$S(t)$', fontsize=12)
+axes[0, 0].set_title('Población Susceptible', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+axes[0, 0].set_ylim(0, 1)
+
+# Infectados I(t)
+axes[0, 1].plot(sol.t, sol.y[1], 'r-', linewidth=2, label='$I(t)$ (Infectados)')
+axes[0, 1].axvline(x=t_pico, color='k', linestyle='--', linewidth=1.5, alpha=0.7,
+                   label=f'Pico en t={t_pico:.1f}')
+axes[0, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 1].set_ylabel('$I(t)$', fontsize=12)
+axes[0, 1].set_title('Población Infectada', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+axes[0, 1].set_ylim(0, max(sol.y[1]) * 1.1)
+
+# Recuperados R(t)
+axes[1, 0].plot(sol.t, sol.y[2], 'g-', linewidth=2, label='$R(t)$ (Recuperados)')
+axes[1, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 0].set_ylabel('$R(t)$', fontsize=12)
+axes[1, 0].set_title('Población Recuperada', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+axes[1, 0].set_ylim(0, 1)
+
+# Comparación de las tres poblaciones
+axes[1, 1].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$S(t)$')
+axes[1, 1].plot(sol.t, sol.y[1], 'r-', linewidth=2, label='$I(t)$')
+axes[1, 1].plot(sol.t, sol.y[2], 'g-', linewidth=2, label='$R(t)$')
+axes[1, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 1].set_ylabel('Proporción de población', fontsize=12)
+axes[1, 1].set_title('Evolución completa del modelo SIR', fontsize=12)
+axes[1, 1].legend(fontsize=10)
+axes[1, 1].grid(True, alpha=0.3)
+axes[1, 1].set_ylim(0, 1)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: Infectados con anotaciones del pico
+fig2, ax = plt.subplots(figsize=(12, 5))
+ax.plot(sol.t, sol.y[1], 'r-', linewidth=2, label='$I(t)$')
+ax.fill_between(sol.t, 0, sol.y[1], alpha=0.3, color='red')
+ax.axvline(x=t_pico, color='k', linestyle='--', linewidth=1.5, alpha=0.7,
+           label=f'Pico máximo: t={t_pico:.1f}, I_max={I_max:.4f}')
+ax.axhline(y=0.01 * I_max, color='orange', linestyle='--', linewidth=1.5, alpha=0.7,
+           label=f'Umbral 1% del pico')
+if t_fin_epidemia < sol.t[-1]:
+    ax.axvline(x=t_fin_epidemia, color='purple', linestyle='--', linewidth=1.5, alpha=0.7,
+               label=f'Fin epidemia: t≈{t_fin_epidemia:.1f}')
+ax.set_xlabel('Tiempo $t$', fontsize=12)
+ax.set_ylabel('Infectados $I(t)$', fontsize=12)
+ax.set_title('Curva epidémica - Evolución de los infectados', fontsize=14)
+ax.legend(fontsize=10)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 70)
+print("Ejercicio 29 - Modelo Epidemiológico SIR")
+print("=" * 70)
+print("\nParámetros:")
+print(f"  β = {beta} (tasa de transmisión)")
+print(f"  γ = {gamma} (tasa de recuperación)")
+print(f"  R₀ = β/γ = {R0_epidemico:.2f} (número básico de reproducción)")
+print("\nCondiciones iniciales:")
+print(f"  S(0) = {S0} ({S0*100:.1f}% de la población)")
+print(f"  I(0) = {I0} ({I0*100:.1f}% de la población)")
+print(f"  R(0) = {R0}")
+print("\nInterpretación de R₀:")
+if R0_epidemico < 1:
+    print("  • R₀ < 1: La epidemia se extingue por sí sola")
+elif R0_epidemico == 1:
+    print("  • R₀ = 1: Punto crítico, la epidemia puede persistir")
+else:
+    print("  • R₀ > 1: La epidemia se propaga (caso actual)")
+    print(f"  • Se espera que aproximadamente el {100*(1-1/R0_epidemico):.1f}% de la población se infecte")
+
+print("\nResultados de la simulación:")
+print(f"  • Pico de infectados: I_max = {I_max:.4f} ({I_max*100:.2f}%)")
+print(f"  • Tiempo del pico: t = {t_pico:.2f}")
+print(f"  • Susceptibles finales: S_final = {sol.y[0][-1]:.4f} ({sol.y[0][-1]*100:.2f}%)")
+print(f"  • Infectados finales: I_final = {sol.y[1][-1]:.6f}")
+print(f"  • Recuperados finales: R_final = {sol.y[2][-1]:.4f} ({sol.y[2][-1]*100:.2f}%)")
+print(f"  • Total recuperados = {sol.y[2][-1] + sol.y[1][-1]:.4f} ({100*(sol.y[2][-1] + sol.y[1][-1]):.2f}%)")
+
+print("\nConservación de la población (S+I+R debe ser 1):")
+print(f"  • S+I+R al final = {sol.y[0][-1] + sol.y[1][-1] + sol.y[2][-1]:.10f}")
+```
+
+# Ejercicio 30
+
+**Crecimiento logístico cruzado**
+
+\begin{equation}
+\begin{cases}
+\frac{dx}{dt} = x(1 - x - 0.5y) \\
+\frac{dy}{dt} = y(1 - y - 0.3x) \\
+x(0) = 0.5,\quad y(0) = 0.2
+\end{cases}
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Parámetros de competencia
+alpha_xy = 0.5  # Efecto de y sobre x
+alpha_yx = 0.3  # Efecto de x sobre y
+
+# Definir el sistema de competencia logística
+def sistema_ej30(t, z):
+    """
+    z[0] = x(t)
+    z[1] = y(t)
+    
+    dx/dt = x(1 - x - α_xy·y)
+    dy/dt = y(1 - y - α_yx·x)
+    """
+    x, y = z
+    dxdt = x * (1 - x - alpha_xy * y)
+    dydt = y * (1 - y - alpha_yx * x)
+    return [dxdt, dydt]
+
+# Condiciones iniciales
+x0, y0 = 0.5, 0.2
+z0 = [x0, y0]
+
+# Intervalo de tiempo
+t_span = (0, 30)
+t_eval = np.linspace(0, 30, 5000)
+
+# Resolver el sistema
+sol = solve_ivp(sistema_ej30, t_span, z0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Encontrar puntos de equilibrio
+# Equilibrio 1: (0,0)
+# Equilibrio 2: (1,0)
+# Equilibrio 3: (0,1)
+# Equilibrio 4: resolver 1 - x - α_xy·y = 0, 1 - y - α_yx·x = 0
+# x = 1 - α_xy·y, sustituir: 1 - y - α_yx(1 - α_xy·y) = 0
+# 1 - y - α_yx + α_yx·α_xy·y = 0
+# 1 - α_yx - y(1 - α_yx·α_xy) = 0
+# y = (1 - α_yx) / (1 - α_yx·α_xy)
+# x = 1 - α_xy·y
+
+denom = 1 - alpha_yx * alpha_xy
+if denom > 0:
+    y_eq = (1 - alpha_yx) / denom
+    x_eq = 1 - alpha_xy * y_eq
+    equilibrio_interior = (x_eq, y_eq)
+else:
+    equilibrio_interior = None
+
+# Calcular trayectorias adicionales
+condiciones_adicionales = [
+    [0.2, 0.8],
+    [0.8, 0.1],
+    [0.3, 0.3],
+    [0.7, 0.7],
+    [0.1, 0.5]
+]
+
+trayectorias = []
+for ci in condiciones_adicionales:
+    sol_aux = solve_ivp(sistema_ej30, t_span, ci, t_eval=t_eval,
+                        method='RK45', rtol=1e-8, atol=1e-8)
+    trayectorias.append(sol_aux)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+fig.suptitle('Ejercicio 30: Crecimiento Logístico Cruzado (Competencia)\n'
+             f'$\\frac{{dx}}{{dt}} = x(1 - x - {alpha_xy}y),\\quad '
+             f'\\frac{{dy}}{{dt}} = y(1 - y - {alpha_yx}x)$',
+             fontsize=14, fontweight='bold')
+
+# x(t)
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+if equilibrio_interior:
+    axes[0, 0].axhline(y=x_eq, color='r', linestyle='--', linewidth=1.5, alpha=0.7,
+                       label=f'Equilibrio x={x_eq:.3f}')
+axes[0, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 0].set_ylabel('$x(t)$', fontsize=12)
+axes[0, 0].set_title('Población $x(t)$', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+axes[0, 0].set_ylim(0, 1.1)
+
+# y(t)
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+if equilibrio_interior:
+    axes[0, 1].axhline(y=y_eq, color='r', linestyle='--', linewidth=1.5, alpha=0.7,
+                       label=f'Equilibrio y={y_eq:.3f}')
+axes[0, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 1].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 1].set_title('Población $y(t)$', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+axes[0, 1].set_ylim(0, 1.1)
+
+# Ambas variables juntas
+axes[1, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+axes[1, 0].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+axes[1, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 0].set_ylabel('Población', fontsize=12)
+axes[1, 0].set_title('Comparación de $x(t)$ y $y(t)$', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+axes[1, 0].set_ylim(0, 1.1)
+
+# Trayectoria en el plano fase
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=2.5, alpha=0.9,
+                label=f'Trayectoria principal (CI: x={x0}, y={y0})')
+
+# Trayectorias adicionales
+colors = ['orange', 'purple', 'brown', 'pink', 'cyan']
+for i, traj in enumerate(trayectorias):
+    axes[1, 1].plot(traj.y[0], traj.y[1], '-', color=colors[i], linewidth=1.5, alpha=0.6,
+                    label=f'CI: ({condiciones_adicionales[i][0]}, {condiciones_adicionales[i][1]})')
+
+# Puntos de equilibrio
+axes[1, 1].plot(0, 0, 'ks', markersize=8, label='(0,0)')
+axes[1, 1].plot(1, 0, 'ks', markersize=8, label='(1,0)')
+axes[1, 1].plot(0, 1, 'ks', markersize=8, label='(0,1)')
+if equilibrio_interior and x_eq > 0 and y_eq > 0:
+    axes[1, 1].plot(x_eq, y_eq, 'ks', markersize=12, 
+                    label=f'Equilibrio interior ({x_eq:.3f}, {y_eq:.3f})')
+
+axes[1, 1].plot(x0, y0, 'ro', markersize=10, label='CI principal')
+axes[1, 1].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=8,
+                label=f'Final t={sol.t[-1]:.1f}')
+
+# Nuliclinas
+x_vals = np.linspace(0, 1.2, 200)
+# dx/dt=0 → x=0 o y = (1 - x)/alpha_xy
+y_nuliclina_x = (1 - x_vals) / alpha_xy
+y_nuliclina_x = np.maximum(y_nuliclina_x, 0)
+# dy/dt=0 → y=0 o y = 1 - alpha_yx*x
+y_nuliclina_y = 1 - alpha_yx * x_vals
+y_nuliclina_y = np.maximum(y_nuliclina_y, 0)
+
+axes[1, 1].plot(x_vals, y_nuliclina_x, 'b--', linewidth=1.5, alpha=0.5,
+                label='Nuliclina $dx/dt=0$')
+axes[1, 1].plot(x_vals, y_nuliclina_y, 'g--', linewidth=1.5, alpha=0.5,
+                label='Nuliclina $dy/dt=0$')
+
+axes[1, 1].set_xlabel('$x$', fontsize=12)
+axes[1, 1].set_ylabel('$y$', fontsize=12)
+axes[1, 1].set_title('Plano fase - Trayectorias y nuliclinas', fontsize=12)
+axes[1, 1].legend(fontsize=8, loc='upper right')
+axes[1, 1].grid(True, alpha=0.3)
+axes[1, 1].set_xlim(0, 1.2)
+axes[1, 1].set_ylim(0, 1.2)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: Campo de direcciones
+fig2, ax = plt.subplots(figsize=(10, 8))
+
+x_range = np.linspace(0, 1.2, 20)
+y_range = np.linspace(0, 1.2, 20)
+X, Y = np.meshgrid(x_range, y_range)
+dX = X * (1 - X - alpha_xy * Y)
+dY = Y * (1 - Y - alpha_yx * X)
+
+magnitud = np.sqrt(dX**2 + dY**2)
+magnitud[magnitud == 0] = 1
+dX_norm = dX / magnitud
+dY_norm = dY / magnitud
+
+ax.quiver(X, Y, dX_norm, dY_norm, alpha=0.5, width=0.005, scale=15)
+ax.plot(sol.y[0], sol.y[1], 'r-', linewidth=2.5, alpha=0.9, label='Trayectoria principal')
+
+# Trayectorias adicionales
+for traj in trayectorias:
+    ax.plot(traj.y[0], traj.y[1], '-', linewidth=1.5, alpha=0.6)
+
+# Puntos de equilibrio
+ax.plot(0, 0, 'ks', markersize=10)
+ax.plot(1, 0, 'ks', markersize=10)
+ax.plot(0, 1, 'ks', markersize=10)
+if equilibrio_interior and x_eq > 0 and y_eq > 0:
+    ax.plot(x_eq, y_eq, 'ks', markersize=12)
+
+# Nuliclinas
+ax.plot(x_vals, y_nuliclina_x, 'b--', linewidth=2, alpha=0.6, label='$dx/dt=0$')
+ax.plot(x_vals, y_nuliclina_y, 'g--', linewidth=2, alpha=0.6, label='$dy/dt=0$')
+
+ax.set_xlabel('$x$', fontsize=14)
+ax.set_ylabel('$y$', fontsize=14)
+ax.set_title('Campo de direcciones y trayectorias (Competencia Logística)', fontsize=14, fontweight='bold')
+ax.legend(fontsize=10)
+ax.grid(True, alpha=0.3)
+ax.set_xlim(0, 1.2)
+ax.set_ylim(0, 1.2)
+
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 70)
+print("Ejercicio 30 - Crecimiento Logístico Cruzado (Competencia)")
+print("=" * 70)
+print("\nEcuaciones:")
+print(f"  dx/dt = x(1 - x - {alpha_xy}y)")
+print(f"  dy/dt = y(1 - y - {alpha_yx}x)")
+print(f"\nCondiciones iniciales: x(0)={x0}, y(0)={y0}")
+print("\nPuntos de equilibrio:")
+print("  • (0,0) - Extinción total")
+print("  • (1,0) - Solo especie x en capacidad de carga")
+print("  • (0,1) - Solo especie y en capacidad de carga")
+
+if equilibrio_interior:
+    print(f"  • ({x_eq:.4f}, {y_eq:.4f}) - Coexistencia")
+    print("\nAnálisis de coexistencia:")
+    if alpha_xy < 1 and alpha_yx < 1:
+        print("  • Ambos coeficientes de competencia < 1")
+        print("  • Competencia débil → Coexistencia estable")
+    elif alpha_xy > 1 and alpha_yx > 1:
+        print("  • Ambos coeficientes > 1 → Competencia fuerte")
+        print("  • Coexistencia inestable, una especie excluye a la otra")
+    else:
+        print("  • Coeficientes mixtos → Coexistencia condicional")
+
+print("\nResultados numéricos:")
+print(f"  • x final (t={sol.t[-1]:.1f}): {sol.y[0][-1]:.6f}")
+print(f"  • y final (t={sol.t[-1]:.1f}): {sol.y[1][-1]:.6f}")
+
+if equilibrio_interior and x_eq > 0 and y_eq > 0:
+    print(f"\nComparación con equilibrio interior:")
+    print(f"  • Diferencia en x: {abs(sol.y[0][-1] - x_eq):.2e}")
+    print(f"  • Diferencia en y: {abs(sol.y[1][-1] - y_eq):.2e}")
+```
+
+# Ejercicio 31
+
+**Movimiento en campo no lineal**
+
+\begin{equation}
+\begin{cases}
+\frac{dx}{dt} = y \\
+\frac{dy}{dt} = -\sin(x) - 0.5 y \\
+x(0) = \pi/2,\quad y(0) = 0
+\end{cases}
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema de EDOs
+def pendulo_amortiguado(t, estado):
+    """
+    estado[0] = x (posición angular)
+    estado[1] = y (velocidad angular)
+    """
+    x, y = estado
+    dxdt = y
+    dydt = -np.sin(x) - 0.5*y
+    return [dxdt, dydt]
+
+# Condiciones iniciales
+x0 = np.pi/2  # posición inicial
+y0 = 0        # velocidad inicial
+estado0 = [x0, y0]
+
+# Tiempo de integración
+t_span = (0, 20)  # de t=0 a t=20
+t_eval = np.linspace(0, 20, 1000)  # puntos donde evaluar la solución
+
+# Resolver el sistema
+solucion = solve_ivp(pendulo_amortiguado, t_span, estado0, t_eval=t_eval, 
+                     method='RK45')
+
+# Extraer resultados
+t = solucion.t
+x = solucion.y[0]
+y = solucion.y[1]
+
+# Graficar resultados
+fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+
+# Gráfico 1: x vs t (posición vs tiempo)
+axes[0, 0].plot(t, x, 'b-', linewidth=2)
+axes[0, 0].set_xlabel('Tiempo t')
+axes[0, 0].set_ylabel('x(t) (rad)')
+axes[0, 0].set_title('Posición angular vs tiempo')
+axes[0, 0].grid(True)
+
+# Gráfico 2: y vs t (velocidad vs tiempo)
+axes[0, 1].plot(t, y, 'r-', linewidth=2)
+axes[0, 1].set_xlabel('Tiempo t')
+axes[0, 1].set_ylabel('y(t) (rad/s)')
+axes[0, 1].set_title('Velocidad angular vs tiempo')
+axes[0, 1].grid(True)
+
+# Gráfico 3: Retrato de fase (y vs x)
+axes[1, 0].plot(x, y, 'g-', linewidth=2)
+axes[1, 0].set_xlabel('x (rad)')
+axes[1, 0].set_ylabel('y (rad/s)')
+axes[1, 0].set_title('Retrato de fase (Espacio de estados)')
+axes[1, 0].grid(True)
+axes[1, 0].axhline(y=0, color='k', linestyle='--', alpha=0.3)
+axes[1, 0].axvline(x=0, color='k', linestyle='--', alpha=0.3)
+
+# Gráfico 4: Energía (aproximada)
+# Energía cinética + potencial
+energia_cinetica = 0.5 * y**2
+energia_potencial = 1 - np.cos(x)  # aproximación para péndulo
+energia_total = energia_cinetica + energia_potencial
+
+axes[1, 1].plot(t, energia_total, 'm-', linewidth=2)
+axes[1, 1].set_xlabel('Tiempo t')
+axes[1, 1].set_ylabel('Energía total (J)')
+axes[1, 1].set_title('Energía total del sistema')
+axes[1, 1].grid(True)
+
+plt.tight_layout()
+plt.show()
+
+# Imprimir información adicional
+print(f"Solución numérica para el péndulo amortiguado")
+print(f"Condiciones iniciales: x(0) = {x0:.4f} rad, y(0) = {y0:.4f} rad/s")
+print(f"Tiempo final: {t[-1]:.2f} s")
+print(f"Posición final: x({t[-1]:.2f}) = {x[-1]:.6f} rad")
+print(f"Velocidad final: y({t[-1]:.2f}) = {y[-1]:.6f} rad/s")
+```
+
+# Ejercicio 32
+
+**Sistema no lineal acoplado**
+
+\begin{equation}
+\begin{cases}
+\frac{dx}{dt} = x(1 - x) - xy^2 \\
+\frac{dy}{dt} = y(1 - y) - x^2y \\
+x(0) = 0.8,\quad y(0) = 0.6
+\end{cases}
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: center
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Definir el sistema no lineal acoplado
+def sistema_ej32(t, z):
+    """
+    z[0] = x(t)
+    z[1] = y(t)
+    
+    dx/dt = x(1 - x) - x*y² = x(1 - x - y²)
+    dy/dt = y(1 - y) - x²*y = y(1 - y - x²)
+    """
+    x, y = z
+    dxdt = x * (1 - x - y**2)
+    dydt = y * (1 - y - x**2)
+    return [dxdt, dydt]
+
+# Condiciones iniciales
+x0, y0 = 0.8, 0.6
+z0 = [x0, y0]
+
+# Intervalo de tiempo
+t_span = (0, 30)
+t_eval = np.linspace(0, 30, 5000)
+
+# Resolver el sistema
+sol = solve_ivp(sistema_ej32, t_span, z0, t_eval=t_eval, method='RK45',
+                rtol=1e-8, atol=1e-8)
+
+# Puntos de equilibrio
+# Equilibrio 1: (0,0)
+# Equilibrio 2: (1,0)
+# Equilibrio 3: (0,1)
+# Equilibrio 4: resolver 1 - x - y² = 0, 1 - y - x² = 0
+# y² = 1 - x,  x² = 1 - y
+# Sustituyendo: y² = 1 - x, y = 1 - x²
+# (1 - x²)² = 1 - x
+# (1 - 2x² + x⁴) = 1 - x
+# -2x² + x⁴ + x = 0
+# x(x³ - 2x + 1) = 0
+# x=0 es solución (da y=1)
+# Para x³ - 2x + 1 = 0: raíces x=1, x=( -1 ± √5)/2
+# x=1 da y=0
+# x = (-1 + √5)/2 ≈ 0.618 da y = 1 - x² ≈ 0.618
+# x = (-1 - √5)/2 ≈ -1.618 (no válido para población)
+
+x_eq_int = (np.sqrt(5) - 1) / 2  # ≈ 0.618034
+y_eq_int = 1 - x_eq_int**2        # ≈ 0.618034
+
+# Calcular trayectorias adicionales
+condiciones_adicionales = [
+    [0.3, 0.3],
+    [0.9, 0.1],
+    [0.2, 0.7],
+    [0.5, 0.9],
+    [0.95, 0.05]
+]
+
+trayectorias = []
+for ci in condiciones_adicionales:
+    sol_aux = solve_ivp(sistema_ej32, t_span, ci, t_eval=t_eval,
+                        method='RK45', rtol=1e-8, atol=1e-8)
+    trayectorias.append(sol_aux)
+
+# Gráficas
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+fig.suptitle('Ejercicio 32: Sistema No Lineal Acoplado\n'
+             '$\\frac{dx}{dt} = x(1 - x - y^2),\\quad \\frac{dy}{dt} = y(1 - y - x^2)$',
+             fontsize=14, fontweight='bold')
+
+# x(t)
+axes[0, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+axes[0, 0].axhline(y=x_eq_int, color='r', linestyle='--', linewidth=1.5, alpha=0.7,
+                   label=f'Equilibrio interior x={x_eq_int:.4f}')
+axes[0, 0].axhline(y=1, color='k', linestyle=':', alpha=0.3)
+axes[0, 0].axhline(y=0, color='k', linestyle=':', alpha=0.3)
+axes[0, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 0].set_ylabel('$x(t)$', fontsize=12)
+axes[0, 0].set_title('Población $x(t)$', fontsize=12)
+axes[0, 0].legend(fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+axes[0, 0].set_ylim(0, 1.1)
+
+# y(t)
+axes[0, 1].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+axes[0, 1].axhline(y=y_eq_int, color='r', linestyle='--', linewidth=1.5, alpha=0.7,
+                   label=f'Equilibrio interior y={y_eq_int:.4f}')
+axes[0, 1].axhline(y=1, color='k', linestyle=':', alpha=0.3)
+axes[0, 1].axhline(y=0, color='k', linestyle=':', alpha=0.3)
+axes[0, 1].set_xlabel('Tiempo $t$', fontsize=12)
+axes[0, 1].set_ylabel('$y(t)$', fontsize=12)
+axes[0, 1].set_title('Población $y(t)$', fontsize=12)
+axes[0, 1].legend(fontsize=10)
+axes[0, 1].grid(True, alpha=0.3)
+axes[0, 1].set_ylim(0, 1.1)
+
+# Ambas variables juntas
+axes[1, 0].plot(sol.t, sol.y[0], 'b-', linewidth=2, label='$x(t)$')
+axes[1, 0].plot(sol.t, sol.y[1], 'g-', linewidth=2, label='$y(t)$')
+axes[1, 0].set_xlabel('Tiempo $t$', fontsize=12)
+axes[1, 0].set_ylabel('Población', fontsize=12)
+axes[1, 0].set_title('Comparación de $x(t)$ y $y(t)$', fontsize=12)
+axes[1, 0].legend(fontsize=10)
+axes[1, 0].grid(True, alpha=0.3)
+axes[1, 0].set_ylim(0, 1.1)
+
+# Trayectoria en el plano fase (x vs y)
+axes[1, 1].plot(sol.y[0], sol.y[1], 'r-', linewidth=2.5, alpha=0.9,
+                label=f'Trayectoria principal (CI: {x0}, {y0})')
+
+# Trayectorias adicionales
+colors = ['orange', 'purple', 'brown', 'pink', 'cyan']
+for i, traj in enumerate(trayectorias):
+    axes[1, 1].plot(traj.y[0], traj.y[1], '-', color=colors[i], linewidth=1.5, alpha=0.6,
+                    label=f'CI: ({condiciones_adicionales[i][0]}, {condiciones_adicionales[i][1]})')
+
+# Puntos de equilibrio
+axes[1, 1].plot(0, 0, 'ks', markersize=8, label='(0,0)')
+axes[1, 1].plot(1, 0, 'ks', markersize=8, label='(1,0)')
+axes[1, 1].plot(0, 1, 'ks', markersize=8, label='(0,1)')
+axes[1, 1].plot(x_eq_int, y_eq_int, 'ks', markersize=12,
+                label=f'Equilibrio interior ({x_eq_int:.4f}, {y_eq_int:.4f})')
+
+axes[1, 1].plot(x0, y0, 'ro', markersize=10, label='CI principal')
+axes[1, 1].plot(sol.y[0][-1], sol.y[1][-1], 'go', markersize=8,
+                label=f'Final t={sol.t[-1]:.1f}')
+
+# Nuliclinas
+x_vals = np.linspace(0, 1.2, 200)
+# dx/dt=0 → x=0 o y = sqrt(1 - x)
+y_nuliclina_x = np.sqrt(np.maximum(1 - x_vals, 0))
+# dy/dt=0 → y=0 o y = 1 - x²
+y_nuliclina_y = 1 - x_vals**2
+y_nuliclina_y = np.maximum(y_nuliclina_y, 0)
+
+axes[1, 1].plot(x_vals, y_nuliclina_x, 'b--', linewidth=1.5, alpha=0.5,
+                label='Nuliclina $dx/dt=0$')
+axes[1, 1].plot(x_vals, y_nuliclina_y, 'g--', linewidth=1.5, alpha=0.5,
+                label='Nuliclina $dy/dt=0$')
+
+axes[1, 1].set_xlabel('$x$', fontsize=12)
+axes[1, 1].set_ylabel('$y$', fontsize=12)
+axes[1, 1].set_title('Plano fase - Trayectorias y nuliclinas', fontsize=12)
+axes[1, 1].legend(fontsize=8, loc='upper right')
+axes[1, 1].grid(True, alpha=0.3)
+axes[1, 1].set_xlim(0, 1.1)
+axes[1, 1].set_ylim(0, 1.1)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: Campo de direcciones
+fig2, ax = plt.subplots(figsize=(10, 8))
+
+x_range = np.linspace(0, 1.1, 20)
+y_range = np.linspace(0, 1.1, 20)
+X, Y = np.meshgrid(x_range, y_range)
+dX = X * (1 - X - Y**2)
+dY = Y * (1 - Y - X**2)
+
+magnitud = np.sqrt(dX**2 + dY**2)
+magnitud[magnitud == 0] = 1
+dX_norm = dX / magnitud
+dY_norm = dY / magnitud
+
+ax.quiver(X, Y, dX_norm, dY_norm, alpha=0.5, width=0.005, scale=15)
+ax.plot(sol.y[0], sol.y[1], 'r-', linewidth=2.5, alpha=0.9, label='Trayectoria principal')
+
+# Trayectorias adicionales
+for traj in trayectorias:
+    ax.plot(traj.y[0], traj.y[1], '-', linewidth=1.5, alpha=0.6)
+
+# Puntos de equilibrio
+ax.plot(0, 0, 'ks', markersize=10)
+ax.plot(1, 0, 'ks', markersize=10)
+ax.plot(0, 1, 'ks', markersize=10)
+ax.plot(x_eq_int, y_eq_int, 'ks', markersize=12, label='Puntos de equilibrio')
+
+# Nuliclinas
+x_vals_nul = np.linspace(0, 1.1, 200)
+y_nul_x = np.sqrt(np.maximum(1 - x_vals_nul, 0))
+y_nul_y = 1 - x_vals_nul**2
+y_nul_y = np.maximum(y_nul_y, 0)
+
+ax.plot(x_vals_nul, y_nul_x, 'b--', linewidth=2, alpha=0.6, label='$dx/dt=0$')
+ax.plot(x_vals_nul, y_nul_y, 'g--', linewidth=2, alpha=0.6, label='$dy/dt=0$')
+
+ax.set_xlabel('$x$', fontsize=14)
+ax.set_ylabel('$y$', fontsize=14)
+ax.set_title('Campo de direcciones - Sistema no lineal acoplado', fontsize=14, fontweight='bold')
+ax.legend(fontsize=10)
+ax.grid(True, alpha=0.3)
+ax.set_xlim(0, 1.1)
+ax.set_ylim(0, 1.1)
+
+plt.tight_layout()
+plt.show()
+
+# Figura adicional: Evolución 3D (t, x, y)
+from mpl_toolkits.mplot3d import Axes3D
+
+fig3 = plt.figure(figsize=(10, 8))
+ax3 = fig3.add_subplot(111, projection='3d')
+ax3.plot(sol.t, sol.y[0], sol.y[1], 'b-', linewidth=1.5, alpha=0.8)
+ax3.plot([0], [x0], [y0], 'ro', markersize=8, label='CI')
+ax3.plot([sol.t[-1]], [sol.y[0][-1]], [sol.y[1][-1]], 'go', markersize=8, label='Final')
+ax3.set_xlabel('Tiempo $t$', fontsize=12)
+ax3.set_ylabel('$x$', fontsize=12)
+ax3.set_zlabel('$y$', fontsize=12)
+ax3.set_title('Trayectoria en el espacio 3D (t, x, y)', fontsize=14)
+ax3.legend(fontsize=10)
+plt.tight_layout()
+plt.show()
+
+# Información
+print("=" * 70)
+print("Ejercicio 32 - Sistema No Lineal Acoplado")
+print("=" * 70)
+print("\nEcuaciones:")
+print("  dx/dt = x(1 - x - y²)")
+print("  dy/dt = y(1 - y - x²)")
+print(f"\nCondiciones iniciales: x(0)={x0}, y(0)={y0}")
+print("\nPuntos de equilibrio:")
+print("  • (0,0) - Extinción total")
+print("  • (1,0) - Solo especie x en capacidad de carga")
+print("  • (0,1) - Solo especie y en capacidad de carga")
+print(f"  • ({x_eq_int:.4f}, {y_eq_int:.4f}) - Coexistencia")
+print("\nCaracterísticas:")
+print("  • Interacción no lineal cuadrática cruzada (x·y² y x²·y)")
+print("  • El término de competencia es más fuerte que en el modelo logístico clásico")
+print("  • La interacción es simétrica en la forma")
+print("  • El sistema tiene cuatro puntos de equilibrio")
+
+print("\nResultados numéricos:")
+print(f"  • x({sol.t[-1]:.1f}) = {sol.y[0][-1]:.6f}")
+print(f"  • y({sol.t[-1]:.1f}) = {sol.y[1][-1]:.6f}")
+
+if x_eq_int > 0 and y_eq_int > 0:
+    print(f"\nComparación con el punto de coexistencia:")
+    print(f"  • Diferencia en x: {abs(sol.y[0][-1] - x_eq_int):.2e}")
+    print(f"  • Diferencia en y: {abs(sol.y[1][-1] - y_eq_int):.2e}")
+
+print("\nInterpretación:")
+print("  • La interacción cuadrática hace que la competencia sea más intensa")
+print("  • El sistema tiende a un punto de coexistencia estable")
+print("  • La simetría del sistema hace que x_eq ≈ y_eq ≈ 0.618")
+```
