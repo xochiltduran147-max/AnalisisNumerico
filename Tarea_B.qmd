@@ -1,0 +1,1236 @@
+---
+title: "Tarea Optativa B."
+author: "Xochilt MArcelina Duran Calderas"
+lang: es
+format: 
+  html:
+    grid:
+      body-width: 1200px
+---
+
+
+En los ejercicios 1-3 utilizar las funciones `fsolve` y `minimize` de `scipy.optimize` para obtener soluciones aproximadas. 
+
+```{python}
+#| code-fold: true
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import fsolve, minimize
+```
+
+## Ejercicio 1
+
+Aproxima la solución de los siguientes sistemas no lineales. Para cada inciso, grafica las curvas implícitas $f_1(x_1,x_2)=0$ y $f_2(x_1,x_2)=0$, indicando las soluciones encontradas.
+
+**(a)**
+
+\begin{eqnarray}
+4x_1^2 - 20x_1 + \frac{1}{4}x_2^2 + 8 &=& 0, \\
+\frac{1}{2}x_1 x_2^2 + 2x_1 - 5x_2 + 8 &=& 0.
+\end{eqnarray}
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
+
+def sistema_a(vars):
+    x1, x2 = vars
+    f1 = 4*x1**2 - 20*x1 + 0.25*x2**2 + 8
+    f2 = 0.5*x1*x2**2 + 2*x1 - 5*x2 + 8
+    return [f1, f2]
+
+# Buscar múltiples soluciones con distintos puntos de partida
+inicios = [(0, 0), (4, 4), (4, -4), (0, 4), (2, 2)]
+soluciones = []
+for x0 in inicios:
+    sol, info, ier, _ = fsolve(sistema_a, x0, full_output=True)
+    if ier == 1:
+        if np.linalg.norm(sistema_a(sol)) < 1e-8:
+            if not any(np.allclose(sol, s, atol=1e-4) for s in soluciones):
+                soluciones.append(sol)
+
+print("Inciso (a) — soluciones:")
+for s in soluciones:
+    print(f"  x1 = {s[0]:.6f},  x2 = {s[1]:.6f}")
+
+# Graficar curvas implícitas
+x1 = np.linspace(-1, 6, 500)
+x2 = np.linspace(-8, 8, 500)
+X1, X2 = np.meshgrid(x1, x2)
+
+F1 = 4*X1**2 - 20*X1 + 0.25*X2**2 + 8
+F2 = 0.5*X1*X2**2 + 2*X1 - 5*X2 + 8
+
+fig, ax = plt.subplots(figsize=(7, 6))
+ax.contour(X1, X2, F1, levels=[0], colors='royalblue', linewidths=2)
+ax.contour(X1, X2, F2, levels=[0], colors='tomato',    linewidths=2)
+ax.plot([], [], color='royalblue', lw=2, label=r'$f_1(x_1,x_2)=0$')
+ax.plot([], [], color='tomato',    lw=2, label=r'$f_2(x_1,x_2)=0$')
+
+for s in soluciones:
+    ax.plot(s[0], s[1], 'k*', markersize=12, zorder=5)
+    ax.annotate(f'({s[0]:.3f}, {s[1]:.3f})', s,
+                textcoords='offset points', xytext=(6, 6), fontsize=8)
+
+ax.set_title('Ejercicio 1 (a)', fontweight='bold')
+ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+ax.legend(); ax.grid(True, alpha=0.3)
+plt.tight_layout(); plt.show()
+```
+
+**(b)**
+
+\begin{eqnarray}
+3x_1^2 - x_2^2 &=& 0, \\
+3x_1 x_2^2 - x_1^3 - 1 &=& 0.
+\end{eqnarray}
+
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
+
+def sistema_b(vars):
+    x1, x2 = vars
+    f1 = 3*x1**2 - x2**2
+    f2 = 3*x1*x2**2 - x1**3 - 1
+    return [f1, f2]
+
+inicios = [(1, 1), (1, -1), (-1, 1), (0.5, 0.5), (2, 2)]
+soluciones = []
+for x0 in inicios:
+    sol, info, ier, _ = fsolve(sistema_b, x0, full_output=True)
+    if ier == 1:
+        if np.linalg.norm(sistema_b(sol)) < 1e-8:
+            if not any(np.allclose(sol, s, atol=1e-4) for s in soluciones):
+                soluciones.append(sol)
+
+print("Inciso (b) — soluciones:")
+for s in soluciones:
+    print(f"  x1 = {s[0]:.6f},  x2 = {s[1]:.6f}")
+
+x1 = np.linspace(-2, 2, 500)
+x2 = np.linspace(-3, 3, 500)
+X1, X2 = np.meshgrid(x1, x2)
+
+F1 = 3*X1**2 - X2**2
+F2 = 3*X1*X2**2 - X1**3 - 1
+
+fig, ax = plt.subplots(figsize=(7, 6))
+ax.contour(X1, X2, F1, levels=[0], colors='royalblue', linewidths=2)
+ax.contour(X1, X2, F2, levels=[0], colors='tomato',    linewidths=2)
+ax.plot([], [], color='royalblue', lw=2, label=r'$f_1(x_1,x_2)=0$')
+ax.plot([], [], color='tomato',    lw=2, label=r'$f_2(x_1,x_2)=0$')
+
+for s in soluciones:
+    ax.plot(s[0], s[1], 'k*', markersize=12, zorder=5)
+    ax.annotate(f'({s[0]:.3f}, {s[1]:.3f})', s,
+                textcoords='offset points', xytext=(6, 6), fontsize=8)
+
+ax.set_title('Ejercicio 1 (b)', fontweight='bold')
+ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+ax.legend(); ax.grid(True, alpha=0.3)
+plt.tight_layout(); plt.show()
+```
+
+**(c)**
+
+\begin{eqnarray}
+\log(x_1^2 + x_2^2) - \sin(x_1 x_2) &=& \log 2 + \log \pi, \\
+e^{x_1 - x_2} + \cos(x_1 x_2) &=& 0.
+\end{eqnarray}
+
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
+
+# log2 + log(π) = log(2π)
+LOG2PI = np.log(2 * np.pi)
+
+def sistema_c(vars):
+    x1, x2 = vars
+    f1 = np.log(x1**2 + x2**2) - np.sin(x1*x2) - LOG2PI
+    f2 = np.exp(x1 - x2) + np.cos(x1*x2)
+    return [f1, f2]
+
+inicios = [(1, 1), (1, 2), (-1, 1), (2, 1), (1, -1), (-1, -1)]
+soluciones = []
+for x0 in inicios:
+    try:
+        sol, info, ier, _ = fsolve(sistema_c, x0, full_output=True)
+        if ier == 1:
+            if np.linalg.norm(sistema_c(sol)) < 1e-8:
+                if not any(np.allclose(sol, s, atol=1e-4) for s in soluciones):
+                    soluciones.append(sol)
+    except Exception:
+        pass
+
+print("Inciso (c) — soluciones:")
+for s in soluciones:
+    print(f"  x1 = {s[0]:.6f},  x2 = {s[1]:.6f}")
+
+x1 = np.linspace(-3, 3, 500)
+x2 = np.linspace(-3, 3, 500)
+X1, X2 = np.meshgrid(x1, x2)
+
+# clip evita log(0) en el origen
+F1 = np.log(np.clip(X1**2 + X2**2, 1e-10, None)) - np.sin(X1*X2) - LOG2PI
+F2 = np.exp(np.clip(X1 - X2, -10, 10)) + np.cos(X1*X2)
+
+fig, ax = plt.subplots(figsize=(7, 6))
+ax.contour(X1, X2, F1, levels=[0], colors='royalblue', linewidths=2)
+ax.contour(X1, X2, F2, levels=[0], colors='tomato',    linewidths=2)
+ax.plot([], [], color='royalblue', lw=2, label=r'$f_1(x_1,x_2)=0$')
+ax.plot([], [], color='tomato',    lw=2, label=r'$f_2(x_1,x_2)=0$')
+
+for s in soluciones:
+    ax.plot(s[0], s[1], 'k*', markersize=12, zorder=5)
+    ax.annotate(f'({s[0]:.3f}, {s[1]:.3f})', s,
+                textcoords='offset points', xytext=(6, 6), fontsize=8)
+
+ax.set_title('Ejercicio 1 (c)', fontweight='bold')
+ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+ax.legend(); ax.grid(True, alpha=0.3)
+plt.tight_layout(); plt.show()
+```
+
+**(d)**
+
+\begin{eqnarray}
+\sin(4\pi x_1 x_2) - 2x_2 - x_1 &=& 0, \\
+\left(\frac{4\pi - 1}{4\pi}\right)(e^{2x_1} - e) + 4ex_2^2 - 2ex_1 &=& 0.
+\end{eqnarray}
+
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
+
+C = (4*np.pi - 1) / (4*np.pi)
+
+def sistema_d(vars):
+    x1, x2 = vars
+    f1 = np.sin(4*np.pi*x1*x2) - 2*x2 - x1
+    f2 = C * (np.exp(2*x1) - np.e) + 4*np.e*x2**2 - 2*np.e*x1
+    return [f1, f2]
+
+inicios = [(0.5, 0), (0, 0), (1, 0.5), (0.5, 0.5), (-0.5, 0), (0.5, -0.5)]
+soluciones = []
+for x0 in inicios:
+    try:
+        sol, info, ier, _ = fsolve(sistema_d, x0, full_output=True)
+        if ier == 1:
+            if np.linalg.norm(sistema_d(sol)) < 1e-8:
+                if not any(np.allclose(sol, s, atol=1e-4) for s in soluciones):
+                    soluciones.append(sol)
+    except Exception:
+        pass
+
+print("Inciso (d) — soluciones:")
+for s in soluciones:
+    print(f"  x1 = {s[0]:.6f},  x2 = {s[1]:.6f}")
+
+x1 = np.linspace(-1, 2, 500)
+x2 = np.linspace(-1, 1, 500)
+X1, X2 = np.meshgrid(x1, x2)
+
+F1 = np.sin(4*np.pi*X1*X2) - 2*X2 - X1
+F2 = C*(np.exp(np.clip(2*X1, -10, 10)) - np.e) + 4*np.e*X2**2 - 2*np.e*X1
+
+fig, ax = plt.subplots(figsize=(7, 6))
+ax.contour(X1, X2, F1, levels=[0], colors='royalblue', linewidths=2)
+ax.contour(X1, X2, F2, levels=[0], colors='tomato',    linewidths=2)
+ax.plot([], [], color='royalblue', lw=2, label=r'$f_1(x_1,x_2)=0$')
+ax.plot([], [], color='tomato',    lw=2, label=r'$f_2(x_1,x_2)=0$')
+
+for s in soluciones:
+    ax.plot(s[0], s[1], 'k*', markersize=12, zorder=5)
+    ax.annotate(f'({s[0]:.3f}, {s[1]:.3f})', s,
+                textcoords='offset points', xytext=(6, 6), fontsize=8)
+
+ax.set_title('Ejercicio 1 (d)', fontweight='bold')
+ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+ax.legend(); ax.grid(True, alpha=0.3)
+plt.tight_layout(); plt.show()
+```
+
+---
+
+## Ejercicio 2
+
+Aproxima la solución de los siguientes sistemas no lineales.
+
+**(a)**
+
+\begin{eqnarray}
+15x_1 + x_2^2 - 4x_3 &=& 13, \\
+x_1^2 + 10x_2 - x_3 &=& 11, \\
+x_2^3 - 25x_3 &=& -22.
+\end{eqnarray}
+
+```{python}
+#| code-fold: true
+
+import numpy as np
+from scipy.optimize import fsolve
+
+def sistema_a(vars):
+    x1, x2, x3 = vars
+    f1 = 15*x1 + x2**2 - 4*x3 - 13
+    f2 = x1**2 + 10*x2 - x3 - 11
+    f3 = x2**3 - 25*x3 + 22
+    return [f1, f2, f3]
+
+inicios = [
+    (1, 1, 1), (0, 0, 0), (2, 2, 2),
+    (-1, 1, 1), (1, -1, 1), (1, 1, -1),
+    (0.5, 0.5, 0.5), (2, 1, 0),
+]
+soluciones = []
+for x0 in inicios:
+    sol, info, ier, _ = fsolve(sistema_a, x0, full_output=True)
+    if ier == 1:
+        if np.linalg.norm(sistema_a(sol)) < 1e-8:
+            if not any(np.allclose(sol, s, atol=1e-4) for s in soluciones):
+                soluciones.append(sol)
+
+print("Inciso (a) — soluciones:")
+for s in soluciones:
+    print(f"  x1 = {s[0]:.6f},  x2 = {s[1]:.6f},  x3 = {s[2]:.6f}")
+
+```
+
+**(b)**
+
+\begin{eqnarray}
+10x_1 - 2x_2^2 + x_2 - 2x_3 - 5 &=& 0, \\
+8x_2^2 + 4x_3^2 - 9 &=& 0, \\
+8x_2 x_3 + 4 &=& 0.
+\end{eqnarray}
+
+```{python}
+#| code-fold: true
+
+import numpy as np
+from scipy.optimize import fsolve
+
+def sistema_b(vars):
+    x1, x2, x3 = vars
+    f1 = 10*x1 - 2*x2**2 + x2 - 2*x3 - 5
+    f2 = 8*x2**2 + 4*x3**2 - 9
+    f3 = 8*x2*x3 + 4
+    return [f1, f2, f3]
+
+inicios = [
+    (0, 1, -1), (0, -1, 1), (1, 1, -1),
+    (0.5, 0.5, -0.5), (0, 0.5, -1),
+    (1, -1, 1), (0, 1, 1), (1, 0.5, -0.5),
+]
+soluciones = []
+for x0 in inicios:
+    sol, info, ier, _ = fsolve(sistema_b, x0, full_output=True)
+    if ier == 1:
+        if np.linalg.norm(sistema_b(sol)) < 1e-8:
+            if not any(np.allclose(sol, s, atol=1e-4) for s in soluciones):
+                soluciones.append(sol)
+
+print("Inciso (b) — soluciones:")
+for s in soluciones:
+    print(f"  x1 = {s[0]:.6f},  x2 = {s[1]:.6f},  x3 = {s[2]:.6f}")
+
+```
+
+**(c)**
+
+\begin{eqnarray}
+x_1^3 + x_1^2 x_2 - x_1 x_3 + 6 &=& 0, \\
+e^{x_1} + e^{x_2} - x_3 &=& 0, \\
+x_2^2 - 2x_1 x_3 &=& 4.
+\end{eqnarray}
+
+```{python}
+#| code-fold: true
+
+import numpy as np
+from scipy.optimize import fsolve
+
+def sistema_c(vars):
+    x1, x2, x3 = vars
+    f1 = x1**3 + x1**2 * x2 - x1*x3 + 6
+    f2 = np.exp(x1) + np.exp(x2) - x3
+    f3 = x2**2 - 2*x1*x3 - 4
+    return [f1, f2, f3]
+
+inicios = [
+    (-1, 1, 2), (0, 1, 2), (-2, 0, 1),
+    (-1, 0, 1), (1, 1, 3), (-1, -1, 1),
+    (0, 0, 2), (-2, 1, 3), (1, -1, 2),
+]
+soluciones = []
+for x0 in inicios:
+    try:
+        sol, info, ier, _ = fsolve(sistema_c, x0, full_output=True)
+        if ier == 1:
+            if np.linalg.norm(sistema_c(sol)) < 1e-8:
+                if not any(np.allclose(sol, s, atol=1e-4) for s in soluciones):
+                    soluciones.append(sol)
+    except Exception:
+        pass
+
+print("Inciso (c) — soluciones:")
+for s in soluciones:
+    print(f"  x1 = {s[0]:.6f},  x2 = {s[1]:.6f},  x3 = {s[2]:.6f}")
+
+```
+
+**(d)**
+
+\begin{eqnarray}
+x_1 + \cos(x_1 x_2 x_3) - 1 &=& 0, \\
+(1 - x_1)^{1/4} + x_2 + 0.05x_3^2 - 0.15x_3 - 1 &=& 0, \\
+-x_1^2 - 0.1x_2^2 + 0.01x_2 + x_3 - 1 &=& 0.
+\end{eqnarray}
+
+```{python}
+#| code-fold: true
+
+import numpy as np
+from scipy.optimize import fsolve
+
+def sistema_d(vars):
+    x1, x2, x3 = vars
+    f1 = x1 + np.cos(x1*x2*x3) - 1
+    # (1-x1)^(1/4) requiere x1 <= 1 para evitar raíz de negativo
+    f2 = (1 - x1)**0.25 + x2 + 0.05*x3**2 - 0.15*x3 - 1
+    f3 = -x1**2 - 0.1*x2**2 + 0.01*x2 + x3 - 1
+    return [f1, f2, f3]
+
+inicios = [
+    (0, 0, 1), (0.5, 0, 1), (0, 0.5, 1),
+    (0.1, 0.1, 1), (0, 0, 1.5), (0.5, 0.5, 1),
+    (0, 1, 1), (0.2, 0.2, 1.2),
+]
+soluciones = []
+for x0 in inicios:
+    try:
+        sol, info, ier, _ = fsolve(sistema_d, x0, full_output=True)
+        # Verificar que x1 <= 1 (dominio de la raíz cuarta)
+        if ier == 1 and sol[0] <= 1:
+            if np.linalg.norm(sistema_d(sol)) < 1e-8:
+                if not any(np.allclose(sol, s, atol=1e-4) for s in soluciones):
+                    soluciones.append(sol)
+    except Exception:
+        pass
+
+print("Inciso (d) — soluciones:")
+for s in soluciones:
+    print(f"  x1 = {s[0]:.6f},  x2 = {s[1]:.6f},  x3 = {s[2]:.6f}")
+
+```
+
+---
+
+## Ejercicio 3
+
+Aproxima los mínimos de las siguientes funciones.
+
+**(a)** Grafica la superficie $z = g(x_1, x_2)$ indicando el mínimo encontrado.
+
+\begin{equation}
+g(x_1, x_2) = \cos(x_1 + x_2) + \sin x_1 + \cos x_2.
+\end{equation}
+
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import minimize
+
+def g_a(vars):
+    x1, x2 = vars
+    return np.cos(x1 + x2) + np.sin(x1) + np.cos(x2)
+
+# Buscar mínimo global probando varios puntos de partida
+inicios = [(0, 0), (np.pi, np.pi), (-np.pi, 0),
+           (np.pi/2, np.pi), (-np.pi/2, np.pi/2),
+           (2, 2), (-2, 2), (3, -1)]
+mejor = None
+for x0 in inicios:
+    res = minimize(g_a, x0, method='Nelder-Mead',
+                   options={'xatol': 1e-8, 'fatol': 1e-8, 'maxiter': 10000})
+    if mejor is None or res.fun < mejor.fun:
+        mejor = res
+
+print(f"Mínimo encontrado:")
+print(f"  x1 = {mejor.x[0]:.6f}")
+print(f"  x2 = {mejor.x[1]:.6f}")
+print(f"  g  = {mejor.fun:.6f}")
+
+# Graficar superficie 3D
+x1 = np.linspace(-4, 4, 300)
+x2 = np.linspace(-4, 4, 300)
+X1, X2 = np.meshgrid(x1, x2)
+Z = np.cos(X1 + X2) + np.sin(X1) + np.cos(X2)
+
+fig = plt.figure(figsize=(12, 5))
+
+# Vista 3D
+ax1 = fig.add_subplot(121, projection='3d')
+ax1.plot_surface(X1, X2, Z, cmap='viridis', alpha=0.85)
+ax1.scatter(*mejor.x, mejor.fun, color='red', s=80, zorder=5, label='Mínimo')
+ax1.set_xlabel('$x_1$'); ax1.set_ylabel('$x_2$'); ax1.set_zlabel('$g$')
+ax1.set_title('Superficie $g(x_1, x_2)$', fontweight='bold')
+ax1.legend()
+
+# Mapa de calor (vista superior)
+ax2 = fig.add_subplot(122)
+cp = ax2.contourf(X1, X2, Z, levels=40, cmap='viridis')
+fig.colorbar(cp, ax=ax2)
+ax2.contour(X1, X2, Z, levels=20, colors='white', linewidths=0.5, alpha=0.4)
+ax2.plot(*mejor.x, 'r*', markersize=14, label='Mínimo')
+ax2.annotate(f'({mejor.x[0]:.2f}, {mejor.x[1]:.2f})', mejor.x,
+             textcoords='offset points', xytext=(8, 8),
+             color='white', fontsize=9)
+ax2.set_xlabel('$x_1$'); ax2.set_ylabel('$x_2$')
+ax2.set_title('Vista superior', fontweight='bold')
+ax2.legend()
+
+plt.tight_layout()
+plt.show()
+
+```
+
+
+**(b)** Grafica la superficie $z = g(x_1, x_2)$ indicando el mínimo encontrado.
+
+\begin{equation}
+g(x_1, x_2) = 100(x_1^2 - x_2)^2 + (1 - x_1)^2.
+\end{equation}
+
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import minimize
+
+def g_b(vars):
+    x1, x2 = vars
+    return 100*(x1**2 - x2)**2 + (1 - x1)**2
+
+# La función de Rosenbrock tiene mínimo global conocido en (1, 1)
+# Usamos L-BFGS-B que maneja bien superficies con valles curvos
+inicios = [(0, 0), (-1, 1), (2, 2), (0, 2), (-1, -1)]
+mejor = None
+for x0 in inicios:
+    res = minimize(g_b, x0, method='L-BFGS-B',
+                   options={'ftol': 1e-12, 'gtol': 1e-8, 'maxiter': 10000})
+    if mejor is None or res.fun < mejor.fun:
+        mejor = res
+
+print(f"Mínimo encontrado:")
+print(f"  x1 = {mejor.x[0]:.6f}")
+print(f"  x2 = {mejor.x[1]:.6f}")
+print(f"  g  = {mejor.fun:.6f}")
+
+# Graficar superficie 3D (escala log para apreciar el valle)
+x1 = np.linspace(-2, 2, 400)
+x2 = np.linspace(-1, 3, 400)
+X1, X2 = np.meshgrid(x1, x2)
+Z = 100*(X1**2 - X2)**2 + (1 - X1)**2
+
+fig = plt.figure(figsize=(12, 5))
+
+ax1 = fig.add_subplot(121, projection='3d')
+ax1.plot_surface(X1, X2, np.log1p(Z), cmap='plasma', alpha=0.85)
+ax1.scatter(*mejor.x, np.log1p(mejor.fun), color='red', s=80, zorder=5, label='Mínimo')
+ax1.set_xlabel('$x_1$'); ax1.set_ylabel('$x_2$'); ax1.set_zlabel('$\\log(1+g)$')
+ax1.set_title('Superficie $g$ (escala log)', fontweight='bold')
+ax1.legend()
+
+ax2 = fig.add_subplot(122)
+cp = ax2.contourf(X1, X2, np.log1p(Z), levels=50, cmap='plasma')
+fig.colorbar(cp, ax=ax2, label='log(1+g)')
+ax2.contour(X1, X2, np.log1p(Z), levels=20, colors='white', linewidths=0.5, alpha=0.4)
+ax2.plot(*mejor.x, 'r*', markersize=14, label='Mínimo')
+ax2.annotate(f'({mejor.x[0]:.2f}, {mejor.x[1]:.2f})', mejor.x,
+             textcoords='offset points', xytext=(8, 8),
+             color='white', fontsize=9)
+ax2.set_xlabel('$x_1$'); ax2.set_ylabel('$x_2$')
+ax2.set_title('Vista superior (escala log)', fontweight='bold')
+ax2.legend()
+
+plt.tight_layout()
+plt.show()
+
+```
+
+
+**(c)**
+
+\begin{equation}
+g(x_1, x_2, x_3) = x_1^2 + 2x_2^2 + x_3^2 - 2x_1 x_2 + 2x_1 - 2.5x_2 - x_3 + 2.
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+from scipy.optimize import minimize
+
+def g_c(vars):
+    x1, x2, x3 = vars
+    return (x1**2 + 2*x2**2 + x3**2
+            - 2*x1*x2 + 2*x1 - 2.5*x2 - x3 + 2)
+
+# Función cuadrática — un solo mínimo global
+inicios = [
+    (0, 0, 0), (1, 1, 1), (-1, -1, -1),
+    (2, 2, 2), (0, 1, 0), (-1, 1, 0),
+]
+mejor = None
+for x0 in inicios:
+    res = minimize(g_c, x0, method='L-BFGS-B',
+                   options={'ftol': 1e-12, 'gtol': 1e-8})
+    if mejor is None or res.fun < mejor.fun:
+        mejor = res
+
+print(f"Mínimo encontrado:")
+print(f"  x1 = {mejor.x[0]:.6f}")
+print(f"  x2 = {mejor.x[1]:.6f}")
+print(f"  x3 = {mejor.x[2]:.6f}")
+print(f"  g  = {mejor.fun:.6f}")
+
+```
+
+**(d)**
+
+\begin{equation}
+g(x_1, x_2, x_3) = x_1^4 + 2x_2^4 + 3x_3^4 + 1.01.
+\end{equation}
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+from scipy.optimize import minimize
+
+def g_d(vars):
+    x1, x2, x3 = vars
+    return x1**4 + 2*x2**4 + 3*x3**4 + 1.01
+
+# Mínimo global analítico en (0, 0, 0) con g = 1.01
+# Lo verificamos numéricamente con varios métodos
+inicios = [
+    (0.5, 0.5, 0.5), (1, 1, 1), (-1, -1, -1),
+    (0, 0, 0), (2, -1, 0.5), (-0.5, 0.5, -0.5),
+]
+mejor = None
+for x0 in inicios:
+    res = minimize(g_d, x0, method='L-BFGS-B',
+                   options={'ftol': 1e-14, 'gtol': 1e-10})
+    if mejor is None or res.fun < mejor.fun:
+        mejor = res
+
+print(f"Mínimo encontrado:")
+print(f"  x1 = {mejor.x[0]:.6f}")
+print(f"  x2 = {mejor.x[1]:.6f}")
+print(f"  x3 = {mejor.x[2]:.6f}")
+print(f"  g  = {mejor.fun:.6f}")
+print(f"  (Mínimo analítico: g(0,0,0) = 1.01)")
+
+```
+
+---
+
+# Problemas de valor en la frontera para ecuaciones diferenciales ordinarias
+
+En esta tarea se presentan algunos problemas de valor en la frontera para ecuaciones diferenciales ordinarias. Consideraremos los problemas de valor en la frontera de dos puntos para la ecuación diferencial ordinaria de segundo orden de la forma
+\begin{equation}
+y'' = f(x, y, y'), \qquad a \leq x \leq b,
+\end{equation}
+junto con las condiciones de frontera
+\begin{equation}
+y(a) = \alpha, \qquad y(b) = \beta,
+\end{equation}
+donde $f$ es una función dada, y $\alpha$ y $\beta$ son constantes.
+
+## Ejercicio 4.
+
+Brinda la expresión de un problema lineal de valores en la frontera, enuncia el teorema de existencia y unicidad para este tipo de problemas, y explica el método de disparo lineal para brindar una solución aproximada. Consultar el archivo `BVP.pdf` del repositorio para obtener información adicional sobre este tema.
+
+Ejercicio 4 — Problema lineal de valor en la frontera
+
+FORMA GENERAL:
+  y'' = p(x)y' + q(x)y + r(x),   a <= x <= b,  y(a)=alpha, y(b)=beta
+
+TEOREMA DE EXISTENCIA Y UNICIDAD (Corolario 11.2):
+  Si p(x), q(x), r(x) son continuas en [a,b] y q(x) >= 0 en [a,b],
+  entonces el problema tiene solución única.
+
+MÉTODO DE DISPARO LINEAL:
+  Se resuelven dos PVI:
+    (1) y1'' = p(x)y1' + q(x)y1 + r(x),  y1(a)=alpha,  y1'(a)=0
+    (2) y2'' = p(x)y2' + q(x)y2,          y2(a)=0,       y2'(a)=1
+  La solución se combina como:
+    y(x) = y1(x) + [(beta - y1(b)) / y2(b)] * y2(x)
+
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+from scipy.integrate import solve_ivp
+import matplotlib.pyplot as plt
+
+def disparo_lineal(p, q, r, a, b, alpha, beta, N=100):
+    """
+    Método de disparo lineal para:
+      y'' = p(x)y' + q(x)y + r(x),  y(a)=alpha, y(b)=beta
+    """
+    x_eval = np.linspace(a, b, N)
+
+    # PVI 1: y1'' = p*y1' + q*y1 + r,  y1(a)=alpha, y1'(a)=0
+    def f1(x, Y):
+        y, yp = Y
+        return [yp, p(x)*yp + q(x)*y + r(x)]
+
+    sol1 = solve_ivp(f1, [a, b], [alpha, 0], t_eval=x_eval, dense_output=True)
+
+    # PVI 2: y2'' = p*y2' + q*y2,  y2(a)=0, y2'(a)=1
+    def f2(x, Y):
+        y, yp = Y
+        return [yp, p(x)*yp + q(x)*y]
+
+    sol2 = solve_ivp(f2, [a, b], [0, 1], t_eval=x_eval, dense_output=True)
+
+    # Combinación lineal
+    c = (beta - sol1.y[0, -1]) / sol2.y[0, -1]
+    y_approx = sol1.y[0] + c * sol2.y[0]
+
+    return sol1.t, y_approx
+
+# --- Ejemplo de uso (Ejemplo 2 del libro) ---
+# y'' = -(2/x)y' + (2/x^2)y + sin(ln x)/x^2,  1<=x<=2, y(1)=1, y(2)=2
+p = lambda x: -2/x
+q = lambda x:  2/x**2
+r = lambda x:  np.sin(np.log(x))/x**2
+
+x, y = disparo_lineal(p, q, r, 1, 2, 1, 2)
+
+# Solución exacta
+c2 = (1/70)*(8 - 12*np.sin(np.log(2)) - 4*np.cos(np.log(2)))
+c1 = 11/10 - c2
+y_exact = c1*x + c2/x**2 - (3/10)*np.sin(np.log(x)) - (1/10)*np.cos(np.log(x))
+
+plt.figure(figsize=(10, 4))
+plt.subplot(1,2,1)
+plt.plot(x, y, 'b-', label='Disparo lineal')
+plt.plot(x, y_exact, 'r--', label='Solución exacta')
+plt.legend(); plt.xlabel('x'); plt.ylabel('y')
+plt.title('Disparo lineal — Ejemplo del libro')
+plt.grid(True, alpha=0.3)
+
+plt.subplot(1,2,2)
+plt.semilogy(x, np.abs(y - y_exact), 'g-')
+plt.xlabel('x'); plt.ylabel('Error absoluto')
+plt.title('Error absoluto')
+plt.grid(True, alpha=0.3)
+
+plt.tight_layout(); plt.show()
+
+```
+
+---
+
+Para cada uno de los siguientes problemas de valor en la frontera, utiliza la función `solve_bvp` de `scipy.integrate` para obtener una solución aproximada en el intervalo indicado. En caso que se brinde la solución exacta, compara ambas soluciones por medio de una gráfica del error absoluto y discute la precisión del método.
+
+
+## Ejercicio 5.
+
+\begin{equation}
+y'' = 4(y-x), \qquad 0 \leq x \leq 1, \quad y(0) = 0, \quad y(1) = 2.
+\end{equation}
+
+Solución exacta: $y(x) = \frac{e^2}{e^4-1}(e^{2x} - e^{-2x})+x$.
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_bvp
+
+# --- Sistema de primer orden: Y = [y, y'] ---
+def ode5(x, Y):
+    y, yp = Y
+    return [yp, 4*(y - x)]
+
+def bc5(Ya, Yb):
+    return [Ya[0] - 0,    # y(0) = 0
+            Yb[0] - 2]    # y(1) = 2
+
+x = np.linspace(0, 1, 50)
+Y_init = np.zeros((2, x.size))  # punto de partida
+
+sol = solve_bvp(ode5, bc5, x, Y_init)
+
+# Solución exacta
+def y_exact5(x):
+    e2 = np.e**2
+    return (e2 / (np.e**4 - 1)) * (np.exp(2*x) - np.exp(-2*x)) + x
+
+x_plot = np.linspace(0, 1, 200)
+y_num  = sol.sol(x_plot)[0]
+y_ex   = y_exact5(x_plot)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+ax1.plot(x_plot, y_num, 'b-', label='solve_bvp')
+ax1.plot(x_plot, y_ex,  'r--', label='Exacta')
+ax1.set_title("Ejercicio 5"); ax1.legend()
+ax1.set_xlabel('x'); ax1.set_ylabel('y'); ax1.grid(True, alpha=0.3)
+
+ax2.semilogy(x_plot, np.abs(y_num - y_ex), 'g-')
+ax2.set_title("Error absoluto — Ejercicio 5")
+ax2.set_xlabel('x'); ax2.set_ylabel('|error|'); ax2.grid(True, alpha=0.3)
+
+plt.tight_layout(); plt.show()
+print(f"Error máximo: {np.max(np.abs(y_num - y_ex)):.2e}")
+
+```
+
+---
+
+## Ejercicio 6.
+
+\begin{equation}
+y'' = y' + 2y + \cos(x), \qquad 0 \leq x \leq \frac{\pi}{2}, \quad y(0) = -0.3, \quad y\left(\frac{\pi}{2}\right) = -0.1
+\end{equation}
+Solución exacta: $y(x) = -\frac{1}{10}(\sin(x) +3\, \cos(x))$.
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_bvp
+
+def ode6(x, Y):
+    y, yp = Y
+    return [yp, yp + 2*y + np.cos(x)]
+
+def bc6(Ya, Yb):
+    return [Ya[0] - (-0.3),
+            Yb[0] - (-0.1)]
+
+x = np.linspace(0, np.pi/2, 50)
+Y_init = np.zeros((2, x.size))
+
+sol = solve_bvp(ode6, bc6, x, Y_init)
+
+x_plot = np.linspace(0, np.pi/2, 200)
+y_num  = sol.sol(x_plot)[0]
+
+plt.figure(figsize=(6, 4))
+plt.plot(x_plot, y_num, 'b-', label='solve_bvp')
+plt.title("Ejercicio 6")
+plt.xlabel('x'); plt.ylabel('y'); plt.legend(); plt.grid(True, alpha=0.3)
+plt.tight_layout(); plt.show()
+print(f"Convergió: {sol.success}  |  Mensaje: {sol.message}")
+
+```
+
+---
+
+## Ejercicio 7.
+
+\begin{equation}
+y'' + 4y = \cos(x), \qquad 0 \leq x \leq \frac{\pi}{4}, \quad y(0) = 0, \quad y\left(\frac{\pi}{4}\right) = 0.
+\end{equation}
+Solución exacta: $y(x) = -\frac{1}{3} \cos(2x)-\frac{\sqrt{2}}{6} \sin(2x)+ \frac{1}{3}\cos(x)$.
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_bvp
+
+def ode7(x, Y):
+    y, yp = Y
+    return [yp, np.cos(x) - 4*y]
+
+def bc7(Ya, Yb):
+    return [Ya[0] - 0,
+            Yb[0] - 0]
+
+x = np.linspace(0, np.pi/4, 50)
+Y_init = np.zeros((2, x.size))
+
+sol = solve_bvp(ode7, bc7, x, Y_init)
+
+def y_exact7(x):
+    return -1/3*np.cos(2*x) - (np.sqrt(2)/6)*np.sin(2*x) + 1/3*np.cos(x)
+
+x_plot = np.linspace(0, np.pi/4, 200)
+y_num  = sol.sol(x_plot)[0]
+y_ex   = y_exact7(x_plot)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+ax1.plot(x_plot, y_num, 'b-', label='solve_bvp')
+ax1.plot(x_plot, y_ex,  'r--', label='Exacta')
+ax1.set_title("Ejercicio 7"); ax1.legend()
+ax1.set_xlabel('x'); ax1.set_ylabel('y'); ax1.grid(True, alpha=0.3)
+
+ax2.semilogy(x_plot, np.abs(y_num - y_ex), 'g-')
+ax2.set_title("Error absoluto — Ejercicio 7")
+ax2.set_xlabel('x'); ax2.set_ylabel('|error|'); ax2.grid(True, alpha=0.3)
+
+plt.tight_layout(); plt.show()
+print(f"Error máximo: {np.max(np.abs(y_num - y_ex)):.2e}")
+
+```
+
+---
+
+## Ejercicio 8.
+
+\begin{equation}
+y'' = -(y')^2 - y + \log(x), \qquad 1 \leq x \leq 2, \quad y(1) = 0, \quad y(2) = \log(2).
+\end{equation}
+Solución exacta: $y(x) = \log(x)$.
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_bvp
+
+def ode8(x, Y):
+    y, yp = Y
+    return [yp, -yp**2 - y + np.log(x)]
+
+def bc8(Ya, Yb):
+    return [Ya[0] - 0,
+            Yb[0] - np.log(2)]
+
+x = np.linspace(1, 2, 50)
+# Inicialización cercana a la solución exacta (log x) para ayudar la convergencia
+Y_init = np.array([np.log(x), 1/x])
+
+sol = solve_bvp(ode8, bc8, x, Y_init)
+
+y_exact8 = lambda x: np.log(x)
+
+x_plot = np.linspace(1, 2, 200)
+y_num  = sol.sol(x_plot)[0]
+y_ex   = y_exact8(x_plot)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+ax1.plot(x_plot, y_num, 'b-', label='solve_bvp')
+ax1.plot(x_plot, y_ex,  'r--', label='Exacta: log(x)')
+ax1.set_title("Ejercicio 8"); ax1.legend()
+ax1.set_xlabel('x'); ax1.set_ylabel('y'); ax1.grid(True, alpha=0.3)
+
+ax2.semilogy(x_plot, np.abs(y_num - y_ex), 'g-')
+ax2.set_title("Error absoluto — Ejercicio 8")
+ax2.set_xlabel('x'); ax2.set_ylabel('|error|'); ax2.grid(True, alpha=0.3)
+
+plt.tight_layout(); plt.show()
+print(f"Error máximo: {np.max(np.abs(y_num - y_ex)):.2e}")
+
+```
+
+---
+
+## Ejercicio 9.
+
+\begin{equation}
+y'' = y' \cos(x) - y \log(y), \qquad 0 \leq x \leq \frac{\pi}{2}, \quad y(0) = 1, \quad y\left(\frac{\pi}{2}\right) = e.
+\end{equation}
+Solución exacta: $y(x) = e^{\sin(x)}$.
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_bvp
+
+def ode9(x, Y):
+    y, yp = Y
+    # Proteger log(y) para y > 0
+    y_safe = np.maximum(y, 1e-10)
+    return [yp, yp*np.cos(x) - y_safe*np.log(y_safe)]
+
+def bc9(Ya, Yb):
+    return [Ya[0] - 1,
+            Yb[0] - np.e]
+
+x = np.linspace(0, np.pi/2, 50)
+# Inicialización: e^sin(x) es la solución exacta, ayuda a converger
+Y_init = np.array([np.exp(np.sin(x)), np.exp(np.sin(x))*np.cos(x)])
+
+sol = solve_bvp(ode9, bc9, x, Y_init)
+
+y_exact9 = lambda x: np.exp(np.sin(x))
+
+x_plot = np.linspace(0, np.pi/2, 200)
+y_num  = sol.sol(x_plot)[0]
+y_ex   = y_exact9(x_plot)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+ax1.plot(x_plot, y_num, 'b-', label='solve_bvp')
+ax1.plot(x_plot, y_ex,  'r--', label='Exacta: e^sin(x)')
+ax1.set_title("Ejercicio 9"); ax1.legend()
+ax1.set_xlabel('x'); ax1.set_ylabel('y'); ax1.grid(True, alpha=0.3)
+
+ax2.semilogy(x_plot, np.abs(y_num - y_ex), 'g-')
+ax2.set_title("Error absoluto — Ejercicio 9")
+ax2.set_xlabel('x'); ax2.set_ylabel('|error|'); ax2.grid(True, alpha=0.3)
+
+plt.tight_layout(); plt.show()
+print(f"Error máximo: {np.max(np.abs(y_num - y_ex)):.2e}")
+
+```
+
+---
+
+## Ejercicio 10.
+
+\begin{equation}
+y'' = \frac{1}{2}(1- (y')^2-y \sin(x)), \qquad 0 \leq x \leq \pi, \quad y(0) = 2, \quad y(\pi) = 2.
+\end{equation}
+Solución exacta: $y(x) = 2 + \sin(x)$.
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_bvp
+
+def ode10(x, Y):
+    y, yp = Y
+    return [yp, 0.5*(1 - yp**2 - y*np.sin(x))]
+
+def bc10(Ya, Yb):
+    return [Ya[0] - 2,
+            Yb[0] - 2]
+
+x = np.linspace(0, np.pi, 50)
+Y_init = np.array([2 + np.sin(x), np.cos(x)])  # cerca de la exacta
+
+sol = solve_bvp(ode10, bc10, x, Y_init)
+
+y_exact10 = lambda x: 2 + np.sin(x)
+
+x_plot = np.linspace(0, np.pi, 200)
+y_num  = sol.sol(x_plot)[0]
+y_ex   = y_exact10(x_plot)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+ax1.plot(x_plot, y_num, 'b-', label='solve_bvp')
+ax1.plot(x_plot, y_ex,  'r--', label='Exacta: 2+sin(x)')
+ax1.set_title("Ejercicio 10"); ax1.legend()
+ax1.set_xlabel('x'); ax1.set_ylabel('y'); ax1.grid(True, alpha=0.3)
+
+ax2.semilogy(x_plot, np.abs(y_num - y_ex), 'g-')
+ax2.set_title("Error absoluto — Ejercicio 10")
+ax2.set_xlabel('x'); ax2.set_ylabel('|error|'); ax2.grid(True, alpha=0.3)
+
+plt.tight_layout(); plt.show()
+print(f"Error máximo: {np.max(np.abs(y_num - y_ex)):.2e}")
+
+```
+
+---
+
+
+## Ejercicio 11.
+
+\begin{equation}
+y'' = 2y^3 -6y -2x^3, \qquad 1 \leq x \leq 2, \quad y(1) = 2, \quad y(2) = \frac{5}{2}.
+\end{equation}
+Solución exacta: $y(x) = x+\frac{1}{x}$.
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_bvp
+
+def ode11(x, Y):
+    y, yp = Y
+    return [yp, 2*y**3 - 6*y - 2*x**3]
+
+def bc11(Ya, Yb):
+    return [Ya[0] - 2,
+            Yb[0] - 5/2]
+
+x = np.linspace(1, 2, 50)
+Y_init = np.array([x + 1/x, 1 - 1/x**2])  # cerca de la exacta
+
+sol = solve_bvp(ode11, bc11, x, Y_init)
+
+y_exact11 = lambda x: x + 1/x
+
+x_plot = np.linspace(1, 2, 200)
+y_num  = sol.sol(x_plot)[0]
+y_ex   = y_exact11(x_plot)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+ax1.plot(x_plot, y_num, 'b-', label='solve_bvp')
+ax1.plot(x_plot, y_ex,  'r--', label='Exacta: x + 1/x')
+ax1.set_title("Ejercicio 11"); ax1.legend()
+ax1.set_xlabel('x'); ax1.set_ylabel('y'); ax1.grid(True, alpha=0.3)
+
+ax2.semilogy(x_plot, np.abs(y_num - y_ex), 'g-')
+ax2.set_title("Error absoluto — Ejercicio 11")
+ax2.set_xlabel('x'); ax2.set_ylabel('|error|'); ax2.grid(True, alpha=0.3)
+
+plt.tight_layout(); plt.show()
+print(f"Error máximo: {np.max(np.abs(y_num - y_ex)):.2e}")
+
+```
+
+---
+
+## Ejercicio 12.
+
+\begin{equation}
+y'' = y'+2(y -\log(x))^3-\frac{1}{x} , \qquad 2 \leq x \leq 3, \quad y(2) = \frac{1}{2} + \log(2), \quad y(3) = \frac{1}{3} + \log(3).
+\end{equation}
+Solución exacta: $y(x) = \frac{1}{x} + \log(x)$.    
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_bvp
+
+def ode12(x, Y):
+    y, yp = Y
+    return [yp, yp + 2*(y - np.log(x))**3 - 1/x]
+
+def bc12(Ya, Yb):
+    return [Ya[0] - (0.5 + np.log(2)),
+            Yb[0] - (1/3 + np.log(3))]
+
+x = np.linspace(2, 3, 50)
+y_exact12 = lambda x: 1/x + np.log(x)
+Y_init = np.array([y_exact12(x), -1/x**2 + 1/x])
+
+sol = solve_bvp(ode12, bc12, x, Y_init)
+
+x_plot = np.linspace(2, 3, 200)
+y_num  = sol.sol(x_plot)[0]
+y_ex   = y_exact12(x_plot)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+ax1.plot(x_plot, y_num, 'b-', label='solve_bvp')
+ax1.plot(x_plot, y_ex,  'r--', label='Exacta: 1/x+log(x)')
+ax1.set_title("Ejercicio 12"); ax1.legend()
+ax1.set_xlabel('x'); ax1.set_ylabel('y'); ax1.grid(True, alpha=0.3)
+
+ax2.semilogy(x_plot, np.abs(y_num - y_ex), 'g-')
+ax2.set_title("Error absoluto — Ejercicio 12")
+ax2.set_xlabel('x'); ax2.set_ylabel('|error|'); ax2.grid(True, alpha=0.3)
+
+plt.tight_layout(); plt.show()
+print(f"Error máximo: {np.max(np.abs(y_num - y_ex)):.2e}")
+
+```
+
+---
+
+## Ejercicio 13.
+
+\begin{equation}
+y'' - \mu (y^2-1)y' + y =0, \qquad 0 \leq x \leq 2, \quad y(0) = 0, \quad y(2) = 1.
+\end{equation}
+Donde $\mu = 1/2$. 
+
+```{python}
+#| code-fold: true
+#| fig-align: 'center'
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_bvp
+
+mu = 0.5
+
+def ode13(x, Y):
+    y, yp = Y
+    return [yp, mu*(y**2 - 1)*yp - y]
+
+def bc13(Ya, Yb):
+    return [Ya[0] - 0,
+            Yb[0] - 1]
+
+x = np.linspace(0, 2, 50)
+# Inicialización lineal (de 0 a 1)
+Y_init = np.array([x/2, np.ones_like(x)*0.5])
+
+sol = solve_bvp(ode13, bc13, x, Y_init)
+
+x_plot = np.linspace(0, 2, 200)
+y_num  = sol.sol(x_plot)[0]
+
+plt.figure(figsize=(6, 4))
+plt.plot(x_plot, y_num, 'b-', label=f'solve_bvp  (μ={mu})')
+plt.title("Ejercicio 13 — Ecuación de van der Pol modificada")
+plt.xlabel('x'); plt.ylabel('y'); plt.legend(); plt.grid(True, alpha=0.3)
+plt.tight_layout(); plt.show()
+print(f"Convergió: {sol.success}  |  Mensaje: {sol.message}")
+
+```
+
+---
+
+
+
+
+
+
+
+
+
+
